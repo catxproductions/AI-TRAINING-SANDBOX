@@ -35,7 +35,8 @@
       setStatus("Loading local AI engine…");
       const webllm=await import("https://esm.run/@mlc-ai/web-llm");
       const records=webllm.prebuiltAppConfig.model_list||[];
-      const record=records.find(item=>MODEL_MATCH.test(item.model_id)&&/q4f16/i.test(item.model_id))
+      const record=records.find(item=>/Qwen2\\.5-0\\.5B-Instruct/i.test(item.model_id)&&/q4f16/i.test(item.model_id))
+        ||records.find(item=>/Qwen2-0\\.5B-Instruct/i.test(item.model_id)&&/q4f16/i.test(item.model_id))
         ||records.find(item=>MODEL_MATCH.test(item.model_id));
       if(!record)throw new Error("The supported Qwen2 0.5B model was not found in this WebLLM build.");
       modelId=record.model_id;
