@@ -12,6 +12,7 @@ function segDist(p,a,b){const dx=b.x-a.x,dy=b.y-a.y,t=Math.max(0,Math.min(1,((p.
 function setState(a,state){if(a.state===state)return;a.state=state;a.el.classList.toggle("is-frustrated",state==="frustrated");a.el.dataset.state=state;a.el.setAttribute("aria-label",`AI agent ${a.id}, ${a.emotion.label}, ${state}`);log(state==="frustrated"?`Agent ${a.id} is frustrated and trying another route`:`Agent ${a.id} is ${state}`);feedback.textContent=state==="frustrated"?`Agent ${a.id} is frustrated and trying a different route.`:`Agent ${a.id} is ${state}.`}
 function updateEmotion(a,kind,amount=.08){const e=a.emotion;e[kind]=Math.max(0,Math.min(1,e[kind]+amount));if(kind==="happiness"&&amount>0)e.sadness=Math.max(0,e.sadness-amount*.45);if(kind==="frustration"&&amount<0)e.happiness=Math.min(1,e.happiness+Math.abs(amount)*.25);const labels=[["frustrated",e.frustration],["curious",e.curiosity],["happy",e.happiness],["sad",e.sadness]];labels.sort((x,y)=>y[1]-x[1]);e.label=labels[0][1]>.58?labels[0][0]:"content";a.el.dataset.emotion=e.label;a.el.setAttribute("aria-label",`AI agent ${a.id}, ${e.label}, ${a.state}`);a.el.classList.toggle("is-frustrated",e.label==="frustrated");}
 const agentChatAt=new Map();
+let agentConversationBusy=false;
 function interactAgents(now){
   for(let i=0;i<agents.length;i++){
     const a=agents[i];
@@ -21,7 +22,8 @@ function interactAgents(now){
         a.relationships[b.id]=(a.relationships[b.id]||0)+.002;
         b.relationships[a.id]=(b.relationships[a.id]||0)+.002;
         const pairKey=[a.id,b.id].sort((x,y)=>x-y).join("-");
-        if(window.LocalAgentLLM&&window.LocalAgentLLM.isReady()&&now-(agentChatAt.get(pairKey)||0)>15000){
+        if(window.LocalAgentLLM&&window.LocalAgentLLM.isReady()&&!agentConversationBusy&&now-(agentChatAt.get(pairKey)||0)>15000){
+          agentConversationBusy=true;
           agentChatAt.set(pairKey,now);
           const context="Nearby agents: "+agents.map(x=>"Agent "+x.id+" ("+x.emotion.label+", "+x.state+", intent "+(x.intent||"explore")+")").join("; ")+". They are physically close in the simulation.";
           window.LocalAgentLLM.agentConversation(a,b,context).then(chat=>{
@@ -29,7 +31,8 @@ function interactAgents(now){
             addMessage("assistant",chat.text,a.id);
             addMessage("assistant",chat.reply,b.id);
             log("Agents "+a.id+" and "+b.id+" held an original LLM-generated conversation");
-          }).catch(error=>log("Agent conversation paused: "+(error.message||"local model busy")));
+          }).catch(error=>log("Agent conversation paused: "+(error.message||"local model busy")))
+            .finally(()=>{agentConversationBusy=false;});
         }
         if(now-a.lastSocialAt>2600){
           a.lastSocialAt=b.lastSocialAt=now;
