@@ -33,7 +33,7 @@
   async function lookup(input) {
     const word = String(input || "").trim().toLowerCase().replace(/[^a-z'-]/g, "");
     if (!word) return null;
-    if (words[word]) return {word, part:words[word][0], definition:words[word][1], synonyms:words[word][2].replace(/^ /,"").split(/,\\s*/), source:"built-in"};
+    if (words[word]) return {word, part:words[word][0], definition:words[word][1], synonyms:words[word][2].replace(/^ /,"").split(/,\s*/), source:"built-in"};
     try {
       const response = await fetch("https://api.dictionaryapi.dev/api/v2/entries/en/" + encodeURIComponent(word), {headers:{Accept:"application/json"}});
       if (!response.ok) return null;
