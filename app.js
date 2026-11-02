@@ -5,6 +5,9 @@ const activityList = document.querySelector("#activity-list");
 const sendButton = form.querySelector("button[type='submit']");
 const statusText = document.querySelector("#connection-status");
 const statusDot = document.querySelector("#status-dot");
+const arena = document.querySelector("#agent-arena");
+const agentOrb = document.querySelector("#agent-orb");
+const positionLabel = document.querySelector("#agent-position");
 
 function setStatus(online) {
   statusText.textContent = online ? "Local agent ready" : "Start the local server";
@@ -80,6 +83,41 @@ async function sendMessage(message) {
     input.focus();
   }
 }
+
+function moveAgent(clientX, clientY) {
+  const bounds = arena.getBoundingClientRect();
+  const margin = agentOrb.offsetWidth / 2 + 5;
+  const x = Math.max(margin, Math.min(bounds.width - margin, clientX - bounds.left));
+  const y = Math.max(margin, Math.min(bounds.height - margin, clientY - bounds.top));
+  const xPercent = (x / bounds.width) * 100;
+  const yPercent = (y / bounds.height) * 100;
+  agentOrb.style.left = `${xPercent}%`;
+  agentOrb.style.top = `${yPercent}%`;
+  positionLabel.textContent = `x: ${Math.round(xPercent)} · y: ${Math.round(yPercent)}`;
+  arena.classList.add("agent-moved");
+}
+
+arena.addEventListener("pointerdown", (event) => {
+  if (event.target === agentOrb) return;
+  moveAgent(event.clientX, event.clientY);
+});
+
+agentOrb.addEventListener("keydown", (event) => {
+  const step = event.shiftKey ? 12 : 5;
+  const directions = {
+    ArrowUp: [0, -step], w: [0, -step], W: [0, -step],
+    ArrowDown: [0, step], s: [0, step], S: [0, step],
+    ArrowLeft: [-step, 0], a: [-step, 0], A: [-step, 0],
+    ArrowRight: [step, 0], d: [step, 0], D: [step, 0],
+  };
+  const direction = directions[event.key];
+  if (!direction) return;
+  event.preventDefault();
+  const bounds = arena.getBoundingClientRect();
+  const currentX = (parseFloat(agentOrb.style.left) || 50) / 100 * bounds.width;
+  const currentY = (parseFloat(agentOrb.style.top) || 50) / 100 * bounds.height;
+  moveAgent(bounds.left + currentX + direction[0], bounds.top + currentY + direction[1]);
+});
 
 form.addEventListener("submit", (event) => {
   event.preventDefault();

@@ -29,6 +29,13 @@
             <span class="version-chip">LOCAL AGENT · 0.1</span>
           </div>
 
+          <section class="agent-arena" id="agent-arena" aria-label="Agent movement arena. Click a point or use arrow keys or WASD to move the agent.">
+            <div class="arena-label"><span class="arena-live-dot"></span> AGENT ARENA</div>
+            <span class="arena-coordinate" id="agent-position" aria-live="polite">x: 50 · y: 50</span>
+            <button class="agent-orb" id="agent-orb" type="button" aria-label="AI agent. Use arrow keys or WASD to move.">AI</button>
+            <p class="arena-hint" id="arena-hint">Click the grid to move · WASD / arrow keys</p>
+          </section>
+
           <div class="conversation" id="conversation" aria-live="polite" aria-label="Conversation">
             <article class="message assistant-message">
               <div class="avatar" aria-hidden="true">A</div>
