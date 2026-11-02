@@ -3,28 +3,28 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="theme-color" content="#3c7975" />
-    <meta name="description" content="A local, API-key-free agent sandbox for exploring safe tools and task planning." />
+    <meta name="theme-color" content="#438f86" />
+    <meta name="description" content="A local-first sandbox for exploring an agent, its tools, and task activity." />
     <title>AI Training Sandbox</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;500;600;700&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet" />
+    <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;500;600;700&family=DM+Sans:wght@400;500;600;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet" />
     <link rel="stylesheet" href="styles.css" />
     <script src="app.js" defer></script>
   </head>
   <body>
     <div class="page-shell">
-      <header class="topbar">
-        <a class="wordmark" href="/" aria-label="AI Training Sandbox home">AI <span>TRAINING</span> SANDBOX</a>
+      <header class="title-bar">
+        <h1>AI Training Sandbox</h1>
         <div class="local-badge"><span class="status-dot" id="status-dot"></span><span id="connection-status">Checking local agent…</span></div>
       </header>
 
-      <main class="workspace">
-        <section class="chat-panel" aria-labelledby="page-title">
+      <main class="stage">
+        <section class="interaction-panel" aria-labelledby="interaction-title">
           <div class="panel-heading">
             <div>
-              <p class="eyebrow">A small, local-first experiment</p>
-              <h1 id="page-title">Make an idea<br /><em>actionable.</em></h1>
+              <p class="eyebrow">A local-first experiment</p>
+              <h2 id="interaction-title">Interaction</h2>
             </div>
             <span class="version-chip">LOCAL AGENT · 0.1</span>
           </div>
@@ -53,27 +53,38 @@
           <p class="privacy-note">Runs on this machine · No external model or API keys configured</p>
         </section>
 
-        <aside class="side-panel" aria-label="Agent tools and activity">
+        <aside class="tools-panel" aria-label="Agent tools and settings">
           <section class="side-card">
-            <div class="card-heading"><span class="card-index">01</span><h2>Available tools</h2></div>
+            <div class="card-heading"><span class="card-index">01</span><h2>Tools</h2></div>
             <ul class="tool-list">
               <li><span class="tool-icon">＋</span><span><strong>Notes</strong><small>Save and recall locally</small></span><span class="tool-state">READY</span></li>
               <li><span class="tool-icon">∑</span><span><strong>Calculator</strong><small>Safe arithmetic only</small></span><span class="tool-state">READY</span></li>
               <li><span class="tool-icon">↗</span><span><strong>Task planner</strong><small>Turn goals into steps</small></span><span class="tool-state">READY</span></li>
             </ul>
+          </section>
+
+          <section class="side-card settings-card">
+            <div class="card-heading"><span class="card-index">02</span><h2>Settings &amp; limits</h2></div>
+            <dl class="settings-list">
+              <div><dt>Mode</dt><dd>Local demo</dd></div>
+              <div><dt>API keys</dt><dd>Not required</dd></div>
+              <div><dt>External access</dt><dd>Disabled</dd></div>
+            </dl>
             <p class="tool-boundary">The agent cannot run shell commands, access the internet, or modify your files beyond its local notes.</p>
           </section>
-
-          <section class="side-card activity-card">
-            <div class="card-heading"><span class="card-index">02</span><h2>Recent activity</h2></div>
-            <ol class="activity-list" id="activity-list" aria-live="polite">
-              <li class="activity-empty">Your tool actions will appear here.</li>
-            </ol>
-          </section>
-
-          <div class="build-note"><span class="build-spark">✳</span><p><strong>Built to learn.</strong><br />A transparent starter, not a trained foundation model.</p></div>
         </aside>
       </main>
+
+      <section class="activity-panel" aria-labelledby="activity-title">
+        <div class="activity-heading">
+          <div><p class="eyebrow">Tool actions only</p><h2 id="activity-title">Activity</h2></div>
+          <span class="activity-caption">Recent actions · No private reasoning shown</span>
+        </div>
+        <ol class="activity-list" id="activity-list" aria-live="polite">
+          <li class="activity-empty">Your tool actions will appear here.</li>
+        </ol>
+      </section>
+
       <footer class="footer"><span>AI TRAINING SANDBOX</span><span>LOCAL-FIRST · OPEN EXPERIMENT</span></footer>
     </div>
   </body>
