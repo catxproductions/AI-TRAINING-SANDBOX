@@ -8,6 +8,7 @@ const statusDot = document.querySelector("#status-dot");
 const arena = document.querySelector("#agent-arena");
 const agentOrb = document.querySelector("#agent-orb");
 const positionLabel = document.querySelector("#agent-position");
+const pauseButton = document.querySelector("#pause-agent");
 
 function setStatus(online) {
   statusText.textContent = online ? "Local agent ready" : "Start the local server";
@@ -84,40 +85,68 @@ async function sendMessage(message) {
   }
 }
 
-function moveAgent(clientX, clientY) {
+const environments = {
+  calm: { x: 0.23, y: 0.17, rate: 1 },
+  curious: { x: 0.36, y: 0.27, rate: 1.45 },
+  focused: { x: 0.12, y: 0.1, rate: 0.72 },
+};
+let environment = environments.calm;
+let selectedMode = "calm";
+let paused = false;
+let animationFrame = 0;
+let startedAt = 0;
+
+function animateAgent(now) {
+  if (!startedAt) startedAt = now;
   const bounds = arena.getBoundingClientRect();
-  const margin = agentOrb.offsetWidth / 2 + 5;
-  const x = Math.max(margin, Math.min(bounds.width - margin, clientX - bounds.left));
-  const y = Math.max(margin, Math.min(bounds.height - margin, clientY - bounds.top));
-  const xPercent = (x / bounds.width) * 100;
-  const yPercent = (y / bounds.height) * 100;
+  const elapsed = (now - startedAt) / 1000 * environment.rate;
+  const xRoom = Math.max(0, (bounds.width - agentOrb.offsetWidth - 36) / 2);
+  const yRoom = Math.max(0, (bounds.height - agentOrb.offsetHeight - 60) / 2);
+  // Layered, slow sine waves create a gentle meandering path rather than player-like controls.
+  const x = bounds.width / 2 + xRoom * environment.x * (Math.sin(elapsed * .31) + .32 * Math.sin(elapsed * .73 + 1.4));
+  const y = bounds.height / 2 + yRoom * environment.y * (Math.sin(elapsed * .23 + 2.1) + .28 * Math.sin(elapsed * .57));
+  const xPercent = x / bounds.width * 100;
+  const yPercent = y / bounds.height * 100;
   agentOrb.style.left = `${xPercent}%`;
   agentOrb.style.top = `${yPercent}%`;
   positionLabel.textContent = `x: ${Math.round(xPercent)} · y: ${Math.round(yPercent)}`;
-  arena.classList.add("agent-moved");
+  animationFrame = requestAnimationFrame(animateAgent);
 }
 
-arena.addEventListener("pointerdown", (event) => {
-  if (event.target === agentOrb) return;
-  moveAgent(event.clientX, event.clientY);
+function startAgent() {
+  if (animationFrame) cancelAnimationFrame(animationFrame);
+  startedAt = 0;
+  animationFrame = requestAnimationFrame(animateAgent);
+}
+
+function setPaused(shouldPause) {
+  paused = shouldPause;
+  pauseButton.setAttribute("aria-pressed", String(paused));
+  pauseButton.textContent = paused ? "Resume agent" : "Pause agent";
+  arena.classList.toggle("is-paused", paused);
+  if (paused) {
+    cancelAnimationFrame(animationFrame);
+    animationFrame = 0;
+  } else {
+    startAgent();
+  }
+}
+
+document.querySelectorAll(".mode-button").forEach((button) => {
+  button.addEventListener("click", () => {
+    selectedMode = button.dataset.mode;
+    environment = environments[selectedMode];
+    document.querySelectorAll(".mode-button").forEach((modeButton) => {
+      const active = modeButton === button;
+      modeButton.classList.toggle("is-active", active);
+      modeButton.setAttribute("aria-pressed", String(active));
+    });
+    if (!paused) startAgent();
+    addActivity(`Set environment to ${selectedMode}`);
+  });
 });
 
-agentOrb.addEventListener("keydown", (event) => {
-  const step = event.shiftKey ? 12 : 5;
-  const directions = {
-    ArrowUp: [0, -step], w: [0, -step], W: [0, -step],
-    ArrowDown: [0, step], s: [0, step], S: [0, step],
-    ArrowLeft: [-step, 0], a: [-step, 0], A: [-step, 0],
-    ArrowRight: [step, 0], d: [step, 0], D: [step, 0],
-  };
-  const direction = directions[event.key];
-  if (!direction) return;
-  event.preventDefault();
-  const bounds = arena.getBoundingClientRect();
-  const currentX = (parseFloat(agentOrb.style.left) || 50) / 100 * bounds.width;
-  const currentY = (parseFloat(agentOrb.style.top) || 50) / 100 * bounds.height;
-  moveAgent(bounds.left + currentX + direction[0], bounds.top + currentY + direction[1]);
-});
+pauseButton.addEventListener("click", () => setPaused(!paused));
 
 form.addEventListener("submit", (event) => {
   event.preventDefault();
@@ -133,6 +162,16 @@ input.addEventListener("keydown", (event) => {
     event.preventDefault();
     form.requestSubmit();
   }
+});
+
+const motionPreference = window.matchMedia("(prefers-reduced-motion: reduce)");
+if (!motionPreference.matches) startAgent();
+else agentOrb.style.left = "50%";
+motionPreference.addEventListener?.("change", (event) => {
+  if (event.matches) setPaused(true);
+});
+window.addEventListener("resize", () => {
+  if (!paused && !motionPreference.matches) startAgent();
 });
 
 checkStatus();
