@@ -15,7 +15,43 @@ function interactAgents(now){for(let i=0;i<agents.length;i++){const a=agents[i];
 function move(a,now,dt,r){let x=a.x*r.width,y=a.y*r.height,obs=objects.filter(o=>o.type==="obstacle").map(o=>({x:o.x*r.width,y:o.y*r.height})),near=obs.filter(o=>Math.hypot(o.x-x,o.y-y)<125);a.nearby=near.length;if(a.id===5&&window.AgentFiveBehavior){const mood=AgentFiveBehavior.update(a,{now,dt,agents,objects,mode});a.personalityMood=mood;}let goal=objects.filter(o=>o.type==="goal"&&!o.done).sort((g1,g2)=>dist(a,g1,r.width,r.height)-dist(a,g2,r.width,r.height))[0],gx=goal?goal.x*r.width:null,gy=goal?goal.y*r.height:null,target=null;
 if(goal){const gd=Math.hypot(gx-x,gy-y);if(gd<a.best-4){a.best=gd;a.lastProgress=now}if(gd<27){goal.done=true;goal.el.classList.add("completed");a.score+=3;a.best=Infinity;log(`Agent ${a.id} reached a goal · score +3`);status();return}if(a.waypoint&&now<a.routeUntil&&Math.hypot(a.waypoint.x-x,a.waypoint.y-y)>22)target=a.waypoint;else{a.waypoint=null;const dx=gx-x,dy=gy-y,len=Math.hypot(dx,dy)||1,ux=dx/len,uy=dy/len,block=obs.map(o=>({...o,along:(o.x-x)*ux+(o.y-y)*uy,side:segDist(o,{x,y},{x:gx,y:gy})})).filter(o=>o.along>0&&o.along<len&&o.side<50).sort((a,b)=>a.along-b.along)[0];if(block){const side=a.route,cands=[side,-side].map(s=>({x:Math.max(34,Math.min(r.width-34,block.x+ux*58-uy*78*s)),y:Math.max(42,Math.min(r.height-42,block.y+uy*58+ux*78*s))}));const score=p=>a.id===5&&window.AgentFiveBehavior?AgentFiveBehavior.scoreDetour(p,{goal:{x:gx,y:gy},obstacles:obs,agent:a}):obs.reduce((m,o)=>Math.min(m,Math.hypot(o.x-p.x,o.y-p.y)),Infinity)-Math.hypot(gx-p.x,gy-p.y)*.15;cands.sort((p,q)=>score(q)-score(p));target=cands[0];a.route*=-1;a.routeUntil=now+1500;a.waypoint=target;log(`Agent ${a.id} detected a blocked route and chose a detour`)} }if(now-a.lastProgress>2200){a.lastProgress=now;a.best=gd;a.stuck++;a.waypoint=null;a.route*=-1;if(a.stuck>=1)setState(a,"frustrated")}}else{a.best=Infinity;a.waypoint=null}
 let vx=0,vy=0,dest=target|| (goal?{x:gx,y:gy}:null);if(dest){vx=dest.x-x;vy=dest.y-y}else{const w=modes[mode].wander;vx=Math.cos(now*.00023+a.phase)*w+Math.cos(now*.00012+a.phase*2)*.18;vy=Math.sin(now*.00019+a.phase)*w+Math.sin(now*.00014+a.phase*1.4)*.18}for(const o of near){const dx=x-o.x,dy=y-o.y,d=Math.max(1,Math.hypot(dx,dy));if(d<85){const f=(85-d)/85*1.15;vx+=dx/d*f;vy+=dy/d*f}}for(const other of agents){if(other===a)continue;const dx=other.x*r.width-x,dy=other.y*r.height-y,d=Math.hypot(dx,dy);if(d>1&&d<105){const bond=a.relationships[other.id]||0,sign=bond>.08?1:-.35,force=(105-d)/105*.18*sign;vx+=dx/d*force;vy+=dy/d*force;}}if(a.id===5&&window.AgentFiveBehavior){const style=AgentFiveBehavior.steering(a,{x,y,agents,r});vx+=style.x;vy+=style.y;}const len=Math.max(.001,Math.hypot(vx,vy)),speed=modes[mode].speed*Math.max(.72,Math.min(1.25,1+a.score*.025))*(a.id===5?1.16:1),blend=Math.min(1,dt*2.2);a.vx+=(vx/len*speed-a.vx)*blend;a.vy+=(vy/len*speed-a.vy)*blend;a.x+=a.vx*dt/r.width;a.y+=a.vy*dt/r.height;const mx=(a.el.offsetWidth/2+5)/r.width,my=(a.el.offsetHeight/2+30)/r.height;if(a.x<mx||a.x>1-mx){a.x=Math.max(mx,Math.min(1-mx,a.x));a.vx*=-.55}if(a.y<my||a.y>1-my){a.y=Math.max(my,Math.min(1-my,a.y));a.vy*=-.55}a.el.style.left=`${a.x*100}%`;a.el.style.top=`${a.y*100}%`;if(a.state==="frustrated"&&goal&&now-a.lastProgress<500){a.stuck=Math.max(0,a.stuck-.02);if(a.stuck<.2)setState(a,"calm")}}
-function tick(now){if(paused)return;const dt=Math.min(.04,lastFrame?(now-lastFrame)/1000:0);lastFrame=now;const r=arena.getBoundingClientRect();if(r.width&&r.height){agents.forEach(a=>move(a,now,dt,r));interactAgents(now)}status();requestAnimationFrame(tick)}
+const collisionLogAt=new Map();
+function resolveAgentCollisions(r,now){
+  const minX=30,minY=48,maxX=r.width-30,maxY=r.height-48;
+  for(let i=0;i<agents.length;i++){
+    const a=agents[i];
+    for(let j=i+1;j<agents.length;j++){
+      const b=agents[j],dx=(b.x-a.x)*r.width,dy=(b.y-a.y)*r.height;
+      let d=Math.hypot(dx,dy);
+      const ra=a.el.offsetWidth/2,rb=b.el.offsetWidth/2,minDist=ra+rb-2;
+      if(d>=minDist)continue;
+      const nx=d>0?dx/d:((a.id+b.id)%2?1:0),ny=d>0?dy/d:((a.id+b.id)%2?0:1);
+      const overlap=minDist-Math.max(d,0);
+      const correction=overlap*.52;
+      a.x-=nx*correction/r.width;a.y-=ny*correction/r.height;
+      b.x+=nx*correction/r.width;b.y+=ny*correction/r.height;
+      const relative=(b.vx-a.vx)*nx+(b.vy-a.vy)*ny;
+      if(relative<0){
+        const impulse=-(1+.58)*relative/2;
+        a.vx-=impulse*nx;a.vy-=impulse*ny;
+        b.vx+=impulse*nx;b.vy+=impulse*ny;
+      }
+      a.x=Math.max(minX/r.width,Math.min(maxX/r.width,a.x));
+      a.y=Math.max(minY/r.height,Math.min(maxY/r.height,a.y));
+      b.x=Math.max(minX/r.width,Math.min(maxX/r.width,b.x));
+      b.y=Math.max(minY/r.height,Math.min(maxY/r.height,b.y));
+      a.el.style.left=`${a.x*100}%`;a.el.style.top=`${a.y*100}%`;
+      b.el.style.left=`${b.x*100}%`;b.el.style.top=`${b.y*100}%`;
+      a.el.classList.add("is-colliding");b.el.classList.add("is-colliding");
+      const key=`${a.id}-${b.id}`;
+      if(now-(collisionLogAt.get(key)||0)>1400){
+        collisionLogAt.set(key,now);
+        log(`Agents ${a.id} and ${b.id} bumped into each other`);
+      }
+    }
+  }
+}
+function tick(now){if(paused)return;const dt=Math.min(.04,lastFrame?(now-lastFrame)/1000:0);lastFrame=now;const r=arena.getBoundingClientRect();if(r.width&&r.height){agents.forEach(a=>move(a,now,dt,r));resolveAgentCollisions(r,now);interactAgents(now)}status();requestAnimationFrame(tick)}
 function addMessage(role,text,agentId=1){const article=document.createElement("article");article.className=`message ${role==="user"?"user-message":"assistant-message"}`;const avatar=document.createElement("div");avatar.className="avatar";avatar.textContent=role==="user"?"Y":agentId===1?"A":`A${agentId}`;avatar.setAttribute("aria-hidden","true");const content=document.createElement("div");content.className="message-content";const label=document.createElement("span");label.className="message-label";label.textContent=role==="user"?"YOU":`SANDBOX AGENT ${agentId}`;const p=document.createElement("p");p.textContent=text;content.append(label,p);article.append(avatar,content);conversation.append(article);conversation.scrollTop=conversation.scrollHeight}
 function calculate(s){const t=s.match(/\d+(?:\.\d+)?|[()+*/-]/g);if(!t||t.join("")!==s.replace(/\s/g,""))throw Error("Use only numbers and basic arithmetic operators.");let i=0;function atom(){const x=t[i++];if(x==="("){const n=sum();if(t[i++]!==")")throw Error("Check your parentheses.");return n}if(x==="-")return-atom();if(x==="+")return atom();return Number(x)}function product(){let n=atom();while(t[i]==="*"||t[i]==="/"){const op=t[i++],r=atom();if(op==="/"&&!r)throw Error("Cannot divide by zero.");n=op==="*"?n*r:n/r}return n}function sum(){let n=product();while(t[i]==="+"||t[i]==="-"){const op=t[i++],r=product();n=op==="+"?n+r:n-r}return n}const n=sum();if(i!==t.length||!Number.isFinite(n)||Math.abs(n)>1e100)throw Error("That calculation is not supported.");return n}
 function answer(text){const m=text.match(/^(?:calculate|compute|what is|what's)\s+(.+?)\??$/i);if(m){try{return`${m[1]} = ${calculate(m[1])}`}catch(e){return e.message}}if(/^(show|list) notes\b/i.test(text)){try{const a=JSON.parse(localStorage.getItem("sandbox-notes")||"[]");return a.length?`Your saved notes:\n${a.map(n=>`• ${n}`).join("\n")}`:"No notes saved yet. Try: Remember that my project is Atlas."}catch{return"Browser storage is unavailable."}}if(/^(remember|note:|save note)/i.test(text)){const note=text.replace(/^(remember(?: that)?|note:|save note:?)\s*/i,"").trim();if(!note)return"Tell me what you would like to remember.";try{const a=JSON.parse(localStorage.getItem("sandbox-notes")||"[]");a.push(note.slice(0,500));localStorage.setItem("sandbox-notes",JSON.stringify(a.slice(-50)));log("Saved a note in browser storage");return`Saved in this browser: “${note.slice(0,500)}”`}catch{return"Browser storage is unavailable, so I couldn't save that note."}}const p=text.match(/\b(?:plan|make a plan for|break down|steps for)\b\s*(.*)/i);if(p){const g=p[1].trim().replace(/[?.]$/,"")||"your goal";return`A starting plan for ${g}:\n1. Define a clear outcome and what “done” means.\n2. Break the work into small, manageable tasks.\n3. Start with the first task, then review and adjust.`}if(/\b(hello|hi|hey)\b/i.test(text))return"Hello! I can help with simple plans, arithmetic, and browser-local notes. You can also shape the world with the controls.";return"I’m a small rule-based demo, not a general-purpose language model. I can make a short plan, calculate arithmetic, save a note in this browser, and autonomously navigate the sandbox world."}
