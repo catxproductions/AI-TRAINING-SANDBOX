@@ -2,7 +2,7 @@ const $=s=>document.querySelector(s), form=$("#chat-form"), input=$("#user-input
 const agents=[], objects=[], modes={calm:{speed:40,wander:.18},curious:{speed:48,wander:.5},focused:{speed:45,wander:.04}};let mode="calm",action=null,paused=false,lastFrame=0,nextId=1;
 function log(text){const empty=activityList.querySelector(".activity-empty");if(empty)empty.remove();const li=document.createElement("li");li.append(document.createTextNode(text));const time=document.createElement("span");time.className="activity-time";time.textContent=new Date().toLocaleTimeString([],{hour:"2-digit",minute:"2-digit"});li.append(time);activityList.prepend(li);while(activityList.children.length>8)activityList.lastElementChild.remove()}
 function status(){const goals=objects.filter(o=>o.type==="goal"&&!o.done).length,obs=objects.filter(o=>o.type==="obstacle").length,fr=agents.filter(a=>a.emotion.frustration>.55).length;worldStatus.textContent=`${agents.length} ${agents.length===1?"agent":"agents"} · ${goals} ${goals===1?"goal":"goals"} · ${obs} obstacles${fr?` · ${fr} frustrated`:""}`;agentState.textContent=agents.map(a=>`AI ${a.id}${a.id===5?" ★":""} ${a.emotion.label} · ${a.state}`).join(" · ")||"No agents in the world"}
-function createAgent(x=.25+Math.random()*.15,y=.4+Math.random()*.2){if(agents.length>=5){feedback.textContent="The sandbox supports up to five agents.";return}const id=agents.length?Math.max(...agents.map(a=>a.id))+1:1,el=document.createElement("div");el.className=`agent-orb${id===2?" agent-two":id===3?" agent-three":""}${id===5?" agent-five":""}`;el.setAttribute("role","img");el.setAttribute("aria-label",`AI agent ${id}`);el.textContent=id===1?"AI":id===5?"A5★":`A${id}`;agentLayer.append(el);const a={id,x,y,vx:0,vy:0,el,phase:Math.random()*6,score:0,stuck:0,lastProgress:performance.now(),best:Infinity,waypoint:null,route:Math.random()<.5?-1:1,state:"exploring",nearby:0,emotion:{happiness:.5,curiosity:.5,frustration:0,sadness:0,label:"content"},relationships:{},lastSocialAt:0,lastEmotionAt:0};agents.push(a);if(id===5&&window.AgentFiveBehavior)AgentFiveBehavior.initialize(a);status();return a}
+function createAgent(x=.25+Math.random()*.15,y=.4+Math.random()*.2){if(agents.length>=5){feedback.textContent="The sandbox supports up to five agents.";return}const id=agents.length?Math.max(...agents.map(a=>a.id))+1:1,el=document.createElement("div");el.className=`agent-orb${id===2?" agent-two":id===3?" agent-three":""}${id===5?" agent-five":""}`;el.setAttribute("role","img");el.setAttribute("aria-label",`AI agent ${id}`);el.textContent=id===1?"AI":id===5?"A5★":`A${id}`;agentLayer.append(el);const a={id,x,y,vx:0,vy:0,el,phase:Math.random()*6,score:0,stuck:0,lastProgress:performance.now(),best:Infinity,waypoint:null,route:Math.random()<.5?-1:1,state:"exploring",nearby:0,emotion:{happiness:.5,curiosity:.5,frustration:0,sadness:0,label:"content"},relationships:{},lastSocialAt:0,lastEmotionAt:0,intent:"explore",intentReason:"",lastPlanAt:0};agents.push(a);if(id===5&&window.AgentFiveBehavior)AgentFiveBehavior.initialize(a);status();return a}
 function addObject(type,x,y){const el=document.createElement("div");el.className=`world-part ${type}`;const label=document.createElement("span");label.className="world-part-label";label.textContent=type.toUpperCase();el.append(label);el.style.left=`${x*100}%`;el.style.top=`${y*100}%`;objectsLayer.append(el);const o={id:nextId++,type,x,y,done:false,el};objects.push(o);status();return o}
 function clearAction(){action=null;document.querySelectorAll(".world-button").forEach(b=>b.classList.remove("is-selected"));cancelButton.hidden=true}
 function selectAction(name){if(name==="spawn"){const a=createAgent();if(a){feedback.textContent=`Agent ${a.id} added and will act autonomously.`;log(`Added autonomous agent ${a.id}`)}clearAction();return}action=name;document.querySelectorAll(".world-button").forEach(b=>b.classList.toggle("is-selected",b.dataset.worldAction===name));cancelButton.hidden=false;feedback.textContent=name==="destroy"?"Click near a goal or obstacle to remove it.":name==="reward"||name==="punish"?`Click near an agent to ${name} it.`:`Click the grid to place a ${name}.`}
@@ -12,10 +12,51 @@ function segDist(p,a,b){const dx=b.x-a.x,dy=b.y-a.y,t=Math.max(0,Math.min(1,((p.
 function setState(a,state){if(a.state===state)return;a.state=state;a.el.classList.toggle("is-frustrated",state==="frustrated");a.el.dataset.state=state;a.el.setAttribute("aria-label",`AI agent ${a.id}, ${a.emotion.label}, ${state}`);log(state==="frustrated"?`Agent ${a.id} is frustrated and trying another route`:`Agent ${a.id} is ${state}`);feedback.textContent=state==="frustrated"?`Agent ${a.id} is frustrated and trying a different route.`:`Agent ${a.id} is ${state}.`}
 function updateEmotion(a,kind,amount=.08){const e=a.emotion;e[kind]=Math.max(0,Math.min(1,e[kind]+amount));if(kind==="happiness"&&amount>0)e.sadness=Math.max(0,e.sadness-amount*.45);if(kind==="frustration"&&amount<0)e.happiness=Math.min(1,e.happiness+Math.abs(amount)*.25);const labels=[["frustrated",e.frustration],["curious",e.curiosity],["happy",e.happiness],["sad",e.sadness]];labels.sort((x,y)=>y[1]-x[1]);e.label=labels[0][1]>.58?labels[0][0]:"content";a.el.dataset.emotion=e.label;a.el.setAttribute("aria-label",`AI agent ${a.id}, ${e.label}, ${a.state}`);a.el.classList.toggle("is-frustrated",e.label==="frustrated");}
 const agentChatAt=new Map();
-function interactAgents(now){for(let i=0;i<agents.length;i++){const a=agents[i];for(let j=i+1;j<agents.length;j++){const b=agents[j],d=dist(a,b,arena.clientWidth,arena.clientHeight);if(d<62){a.relationships[b.id]=(a.relationships[b.id]||0)+.002;b.relationships[a.id]=(b.relationships[a.id]||0)+.002;const pairKey=[a.id,b.id].sort((x,y)=>x-y).join("-");if(now-(agentChatAt.get(pairKey)||0)>9000&&window.SandboxLanguage){agentChatAt.set(pairKey,now);const chat=window.SandboxLanguage.agentChat(a,b);addMessage("assistant",chat.text,a.id);addMessage("assistant",chat.reply,b.id);log(`Agents ${a.id} and ${b.id} talked using the shared dictionary vocabulary`)}if(now-a.lastSocialAt>2600){a.lastSocialAt=b.lastSocialAt=now;updateEmotion(a,"happiness",.035);updateEmotion(b,"happiness",.035);if(a.id===5||b.id===5){log(`Agent 5 exchanged a cheeky greeting with Agent ${a.id===5?b.id:a.id}`)}else{log(`Agents ${a.id} and ${b.id} interacted and built trust`)}}}else if(d<125){const dx=(b.x-a.x),dy=(b.y-a.y),n=Math.hypot(dx,dy)||1,pull=.0008*(a.relationships[b.id]||0);a.vx+=dx/n*pull*60;a.vy+=dy/n*pull*60;b.vx-=dx/n*pull*60;b.vy-=dy/n*pull*60;}}}}
+function interactAgents(now){
+  for(let i=0;i<agents.length;i++){
+    const a=agents[i];
+    for(let j=i+1;j<agents.length;j++){
+      const b=agents[j],d=dist(a,b,arena.clientWidth,arena.clientHeight);
+      if(d<62){
+        a.relationships[b.id]=(a.relationships[b.id]||0)+.002;
+        b.relationships[a.id]=(b.relationships[a.id]||0)+.002;
+        const pairKey=[a.id,b.id].sort((x,y)=>x-y).join("-");
+        if(window.LocalAgentLLM&&window.LocalAgentLLM.isReady()&&now-(agentChatAt.get(pairKey)||0)>15000){
+          agentChatAt.set(pairKey,now);
+          const context="Nearby agents: "+agents.map(x=>"Agent "+x.id+" ("+x.emotion.label+", "+x.state+", intent "+(x.intent||"explore")+")").join("; ")+". They are physically close in the simulation.";
+          window.LocalAgentLLM.agentConversation(a,b,context).then(chat=>{
+            if(!chat)return;
+            addMessage("assistant",chat.text,a.id);
+            addMessage("assistant",chat.reply,b.id);
+            log("Agents "+a.id+" and "+b.id+" held an original LLM-generated conversation");
+          }).catch(error=>log("Agent conversation paused: "+(error.message||"local model busy")));
+        }
+        if(now-a.lastSocialAt>2600){
+          a.lastSocialAt=b.lastSocialAt=now;
+          updateEmotion(a,"happiness",.035);
+          updateEmotion(b,"happiness",.035);
+          if(a.id===5||b.id===5)log("Agent 5 exchanged a cheeky greeting with Agent "+(a.id===5?b.id:a.id));
+          else log("Agents "+a.id+" and "+b.id+" interacted and built trust");
+        }
+      }else if(d<125){
+        const dx=b.x-a.x,dy=b.y-a.y,n=Math.hypot(dx,dy)||1,pull=.0008*(a.relationships[b.id]||0);
+        a.vx+=dx/n*pull*60;a.vy+=dy/n*pull*60;
+        b.vx-=dx/n*pull*60;b.vy-=dy/n*pull*60;
+      }
+    }
+  }
+}
 function move(a,now,dt,r){let x=a.x*r.width,y=a.y*r.height,obs=objects.filter(o=>o.type==="obstacle").map(o=>({x:o.x*r.width,y:o.y*r.height})),near=obs.filter(o=>Math.hypot(o.x-x,o.y-y)<125);a.nearby=near.length;if(a.id===5&&window.AgentFiveBehavior){const mood=AgentFiveBehavior.update(a,{now,dt,agents,objects,mode});a.personalityMood=mood;}let goal=objects.filter(o=>o.type==="goal"&&!o.done).sort((g1,g2)=>dist(a,g1,r.width,r.height)-dist(a,g2,r.width,r.height))[0],gx=goal?goal.x*r.width:null,gy=goal?goal.y*r.height:null,target=null;
 if(goal){const gd=Math.hypot(gx-x,gy-y);if(gd<a.best-4){a.best=gd;a.lastProgress=now}if(gd<27){goal.done=true;goal.el.classList.add("completed");a.score+=3;a.best=Infinity;log(`Agent ${a.id} reached a goal · score +3`);status();return}if(a.waypoint&&now<a.routeUntil&&Math.hypot(a.waypoint.x-x,a.waypoint.y-y)>22)target=a.waypoint;else{a.waypoint=null;const dx=gx-x,dy=gy-y,len=Math.hypot(dx,dy)||1,ux=dx/len,uy=dy/len,block=obs.map(o=>({...o,along:(o.x-x)*ux+(o.y-y)*uy,side:segDist(o,{x,y},{x:gx,y:gy})})).filter(o=>o.along>0&&o.along<len&&o.side<50).sort((a,b)=>a.along-b.along)[0];if(block){const side=a.route,cands=[side,-side].map(s=>({x:Math.max(34,Math.min(r.width-34,block.x+ux*58-uy*78*s)),y:Math.max(42,Math.min(r.height-42,block.y+uy*58+ux*78*s))}));const score=p=>a.id===5&&window.AgentFiveBehavior?AgentFiveBehavior.scoreDetour(p,{goal:{x:gx,y:gy},obstacles:obs,agent:a}):obs.reduce((m,o)=>Math.min(m,Math.hypot(o.x-p.x,o.y-p.y)),Infinity)-Math.hypot(gx-p.x,gy-p.y)*.15;cands.sort((p,q)=>score(q)-score(p));target=cands[0];a.route*=-1;a.routeUntil=now+1500;a.waypoint=target;log(`Agent ${a.id} detected a blocked route and chose a detour`)} }if(now-a.lastProgress>2200){a.lastProgress=now;a.best=gd;a.stuck++;a.waypoint=null;a.route*=-1;if(a.stuck>=1)setState(a,"frustrated")}}else{a.best=Infinity;a.waypoint=null}
-let vx=0,vy=0,dest=target|| (goal?{x:gx,y:gy}:null);if(dest){vx=dest.x-x;vy=dest.y-y}else{const w=modes[mode].wander;vx=Math.cos(now*.00023+a.phase)*w+Math.cos(now*.00012+a.phase*2)*.18;vy=Math.sin(now*.00019+a.phase)*w+Math.sin(now*.00014+a.phase*1.4)*.18}for(const o of near){const dx=x-o.x,dy=y-o.y,d=Math.max(1,Math.hypot(dx,dy));if(d<85){const f=(85-d)/85*1.15;vx+=dx/d*f;vy+=dy/d*f}}for(const other of agents){if(other===a)continue;const dx=other.x*r.width-x,dy=other.y*r.height-y,d=Math.hypot(dx,dy);if(d>1&&d<105){const bond=a.relationships[other.id]||0,sign=bond>.08?1:-.35,force=(105-d)/105*.18*sign;vx+=dx/d*force;vy+=dy/d*force;}}if(a.id===5&&window.AgentFiveBehavior){const style=AgentFiveBehavior.steering(a,{x,y,agents,r});vx+=style.x;vy+=style.y;}const len=Math.max(.001,Math.hypot(vx,vy)),speed=modes[mode].speed*Math.max(.72,Math.min(1.25,1+a.score*.025))*(a.id===5?1.16:1),blend=Math.min(1,dt*2.2);a.vx+=(vx/len*speed-a.vx)*blend;a.vy+=(vy/len*speed-a.vy)*blend;a.x+=a.vx*dt/r.width;a.y+=a.vy*dt/r.height;const mx=(a.el.offsetWidth/2+5)/r.width,my=(a.el.offsetHeight/2+30)/r.height;if(a.x<mx||a.x>1-mx){a.x=Math.max(mx,Math.min(1-mx,a.x));a.vx*=-.55}if(a.y<my||a.y>1-my){a.y=Math.max(my,Math.min(1-my,a.y));a.vy*=-.55}a.el.style.left=`${a.x*100}%`;a.el.style.top=`${a.y*100}%`;if(a.state==="frustrated"&&goal&&now-a.lastProgress<500){a.stuck=Math.max(0,a.stuck-.02);if(a.stuck<.2)setState(a,"calm")}}
+let vx=0,vy=0,dest=target|| (goal?{x:gx,y:gy}:null);if(dest){vx=dest.x-x;vy=dest.y-y}else{const w=modes[mode].wander;vx=Math.cos(now*.00023+a.phase)*w+Math.cos(now*.00012+a.phase*2)*.18;vy=Math.sin(now*.00019+a.phase)*w+Math.sin(now*.00014+a.phase*1.4)*.18}for(const o of near){const dx=x-o.x,dy=y-o.y,d=Math.max(1,Math.hypot(dx,dy));if(d<85){const f=(85-d)/85*1.15;vx+=dx/d*f;vy+=dy/d*f}}for(const other of agents){if(other===a)continue;const dx=other.x*r.width-x,dy=other.y*r.height-y,d=Math.hypot(dx,dy);if(d>1&&d<105){const bond=a.relationships[other.id]||0,sign=bond>.08?1:-.35,force=(105-d)/105*.18*sign;vx+=dx/d*force;vy+=dy/d*force;}}if(a.intent==="approach_agent"||a.intent==="cooperate"){
+  const nearest=agents.filter(other=>other!==a).map(other=>({other,d:Math.hypot((other.x-a.x)*r.width,(other.y-a.y)*r.height)})).filter(item=>item.d>1).sort((p,q)=>p.d-q.d)[0];
+  if(nearest&&nearest.d>72){const strength=Math.min(.28,(nearest.d-72)/180*.28);vx+=(nearest.other.x-a.x)/nearest.d*strength;vy+=(nearest.other.y-a.y)/nearest.d*strength;}
+}
+if(a.intent==="investigate_obstacle"&&obs.length){
+  const nearest=obs.map(o=>({o,d:Math.hypot(o.x-x,o.y-y)})).sort((p,q)=>p.d-q.d)[0];
+  if(nearest&&nearest.d>88&&nearest.d<220){vx+=(nearest.o.x-x)/nearest.d*.16;vy+=(nearest.o.y-y)/nearest.d*.16;}
+}
+if(a.id===5&&window.AgentFiveBehavior){const style=AgentFiveBehavior.steering(a,{x,y,agents,r});vx+=style.x;vy+=style.y;}const len=Math.max(.001,Math.hypot(vx,vy)),speed=modes[mode].speed*Math.max(.72,Math.min(1.25,1+a.score*.025))*(a.id===5?1.16:1),blend=Math.min(1,dt*2.2);a.vx+=(vx/len*speed-a.vx)*blend;a.vy+=(vy/len*speed-a.vy)*blend;a.x+=a.vx*dt/r.width;a.y+=a.vy*dt/r.height;const mx=(a.el.offsetWidth/2+5)/r.width,my=(a.el.offsetHeight/2+30)/r.height;if(a.x<mx||a.x>1-mx){a.x=Math.max(mx,Math.min(1-mx,a.x));a.vx*=-.55}if(a.y<my||a.y>1-my){a.y=Math.max(my,Math.min(1-my,a.y));a.vy*=-.55}a.el.style.left=`${a.x*100}%`;a.el.style.top=`${a.y*100}%`;if(a.state==="frustrated"&&goal&&now-a.lastProgress<500){a.stuck=Math.max(0,a.stuck-.02);if(a.stuck<.2)setState(a,"calm")}}
 const collisionLogAt=new Map();
 function resolveAgentCollisions(r,now){
   const minX=30,minY=48,maxX=r.width-30,maxY=r.height-48;
@@ -52,14 +93,63 @@ function resolveAgentCollisions(r,now){
     }
   }
 }
-function tick(now){if(paused)return;const dt=Math.min(.04,lastFrame?(now-lastFrame)/1000:0);lastFrame=now;const r=arena.getBoundingClientRect();if(r.width&&r.height){agents.forEach(a=>move(a,now,dt,r));resolveAgentCollisions(r,now);interactAgents(now)}status();requestAnimationFrame(tick)}
+let planningAgentId=null;
+function planAgent(a,now){
+  if(!window.LocalAgentLLM||!window.LocalAgentLLM.isReady()||planningAgentId!==null||now-(a.lastPlanAt||0)<22000)return;
+  planningAgentId=a.id;
+  const world={
+    mood:a.emotion.label,state:a.state,currentIntent:a.intent||"explore",
+    nearbyObstacles:a.nearby,unfinishedGoals:objects.filter(o=>o.type==="goal"&&!o.done).length,
+    nearbyAgents:agents.filter(other=>other!==a&&dist(a,other,arena.clientWidth,arena.clientHeight)<180).map(other=>({id:other.id,mood:other.emotion.label,relationship:a.relationships[other.id]||0})),
+    agent5:a.id===5?{personality:"cheeky, independent specialist",mischiefPhase:a.mischiefPhase}:undefined
+  };
+  window.LocalAgentLLM.decide(a,world).then(plan=>{
+    if(plan){a.intent=plan.intent;a.intentReason=plan.reason;a.lastPlanAt=now;log("Agent "+a.id+" independently chose to "+plan.intent+(plan.reason?": "+plan.reason:""));}
+  }).catch(error=>log("Agent "+a.id+" decision update skipped: "+(error.message||"local model unavailable")))
+    .finally(()=>{planningAgentId=null;});
+}
+function tick(now){
+  if(paused)return;
+  const dt=Math.min(.04,lastFrame?(now-lastFrame)/1000:0);lastFrame=now;
+  const r=arena.getBoundingClientRect();
+  if(r.width&&r.height){
+    agents.forEach(a=>move(a,now,dt,r));
+    resolveAgentCollisions(r,now);
+    interactAgents(now);
+    agents.forEach(a=>planAgent(a,now));
+  }
+  status();requestAnimationFrame(tick);
+}
 function addMessage(role,text,agentId=1){const article=document.createElement("article");article.className=`message ${role==="user"?"user-message":"assistant-message"}`;const avatar=document.createElement("div");avatar.className="avatar";avatar.textContent=role==="user"?"Y":agentId===1?"A":`A${agentId}`;avatar.setAttribute("aria-hidden","true");const content=document.createElement("div");content.className="message-content";const label=document.createElement("span");label.className="message-label";label.textContent=role==="user"?"YOU":`SANDBOX AGENT ${agentId}`;const p=document.createElement("p");p.textContent=text;content.append(label,p);article.append(avatar,content);conversation.append(article);conversation.scrollTop=conversation.scrollHeight;return article}
 function calculate(s){const t=s.match(/\d+(?:\.\d+)?|[()+*/-]/g);if(!t||t.join("")!==s.replace(/\s/g,""))throw Error("Use only numbers and basic arithmetic operators.");let i=0;function atom(){const x=t[i++];if(x==="("){const n=sum();if(t[i++]!==")")throw Error("Check your parentheses.");return n}if(x==="-")return-atom();if(x==="+")return atom();return Number(x)}function product(){let n=atom();while(t[i]==="*"||t[i]==="/"){const op=t[i++],r=atom();if(op==="/"&&!r)throw Error("Cannot divide by zero.");n=op==="*"?n*r:n/r}return n}function sum(){let n=product();while(t[i]==="+"||t[i]==="-"){const op=t[i++],r=product();n=op==="+"?n+r:n-r}return n}const n=sum();if(i!==t.length||!Number.isFinite(n)||Math.abs(n)>1e100)throw Error("That calculation is not supported.");return n}
 function answer(text){const m=text.match(/^(?:calculate|compute|what is|what's)\s+(.+?)\??$/i);if(m){try{return`${m[1]} = ${calculate(m[1])}`}catch(e){return e.message}}if(/^(show|list) notes\b/i.test(text)){try{const a=JSON.parse(localStorage.getItem("sandbox-notes")||"[]");return a.length?`Your saved notes:\n${a.map(n=>`• ${n}`).join("\n")}`:"No notes saved yet. Try: Remember that my project is Atlas."}catch{return"Browser storage is unavailable."}}if(/^(remember|note:|save note)/i.test(text)){const note=text.replace(/^(remember(?: that)?|note:|save note:?)\s*/i,"").trim();if(!note)return"Tell me what you would like to remember.";try{const a=JSON.parse(localStorage.getItem("sandbox-notes")||"[]");a.push(note.slice(0,500));localStorage.setItem("sandbox-notes",JSON.stringify(a.slice(-50)));log("Saved a note in browser storage");return`Saved in this browser: “${note.slice(0,500)}”`}catch{return"Browser storage is unavailable, so I couldn't save that note."}}const p=text.match(/\b(?:plan|make a plan for|break down|steps for)\b\s*(.*)/i);if(p){const g=p[1].trim().replace(/[?.]$/,"")||"your goal";return`A starting plan for ${g}:\n1. Define a clear outcome and what “done” means.\n2. Break the work into small, manageable tasks.\n3. Start with the first task, then review and adjust.`}if(/\b(hello|hi|hey)\b/i.test(text))return"Hello! I can help with simple plans, arithmetic, and browser-local notes. You can also shape the world with the controls.";return"I’m a small rule-based demo, not a general-purpose language model. I can make a short plan, calculate arithmetic, save a note in this browser, and autonomously navigate the sandbox world."}
 window.SandboxBaseAnswer=answer;
 function ensureAgent(id){while(!agents.some(a=>a.id===id)&&agents.length<5){const n=agents.length;createAgent(.24+(n%3)*.12,.38+Math.floor(n/3)*.18)}return agents.find(a=>a.id===id)}
-async function agentResponse(text,id){const agent=ensureAgent(id);return window.SandboxLanguage?await window.SandboxLanguage.respond(text,agent):answer(text)}
-async function send(text){const s=text.trim();if(!s)return;const id=Number($("#agent-select").value)||1,agent=ensureAgent(id);if(!agent){feedback.textContent=`Agent ${id} could not be activated.`;return}addMessage("user",s);input.value="";const replyMessage=addMessage("assistant","Looking that up…",id);const reply=await agentResponse(s,id);const p=replyMessage.querySelector(".message-content p");if(p)p.textContent=reply;log(`Agent ${id} replied using its language rules`)}
+async function agentResponse(text,id){
+  const agent=ensureAgent(id);
+  if(/^(?:define|meaning of|look up|dictionary)\\s+[a-z'-]+[?.!]*$/i.test(text)||/^what does\\s+[a-z'-]+\\s+mean[?.!]*$/i.test(text)){
+    return window.SandboxLanguage?await window.SandboxLanguage.respond(text,agent):"Dictionary lookup is unavailable.";
+  }
+  if(!window.LocalAgentLLM)throw new Error("Local AI runtime did not load. Refresh the page and try again.");
+  const context="Current simulation state: mood "+agent.emotion.label+", state "+agent.state+", independent intention "+(agent.intent||"explore")+". Relationships: "+JSON.stringify(agent.relationships)+". Goals remaining: "+objects.filter(o=>o.type==="goal"&&!o.done).length+". Obstacles nearby: "+agent.nearby+". You are part of an autonomous multi-agent simulation; answer as your own character.";
+  return await window.LocalAgentLLM.chat(agent,text,context);
+}
+async function send(text){
+  const s=text.trim();if(!s)return;
+  const id=Number($("#agent-select").value)||1,agent=ensureAgent(id);
+  if(!agent){feedback.textContent="Agent "+id+" could not be activated.";return}
+  addMessage("user",s);input.value="";
+  const replyMessage=addMessage("assistant","Waking the local model…",id);
+  const p=replyMessage.querySelector(".message-content p");
+  try{
+    const reply=await agentResponse(s,id);
+    if(p)p.textContent=reply;
+    log("Agent "+id+" generated a response using its local language model");
+  }catch(error){
+    if(p)p.textContent="I couldn't start the local model: "+(error.message||"unknown error");
+    log("Local model error: "+(error.message||"unknown error"));
+  }
+}
 $(".world-controls").addEventListener("click",e=>{const b=e.target.closest("[data-world-action]");if(b)selectAction(b.dataset.worldAction)});cancelButton.addEventListener("click",clearAction);arena.addEventListener("click",clickWorld);
 $("#reset-agents").addEventListener("click",()=>{agents.forEach((a,i)=>{a.x=.2+i*.12;a.y=.48+i%2*.08;a.vx=a.vy=a.score=a.stuck=0;a.best=Infinity;a.waypoint=null;a.emotion={happiness:.5,curiosity:.5,frustration:0,sadness:0,label:"content"};a.relationships={};updateEmotion(a,"happiness",0);setState(a,"exploring");a.el.style.left=`${a.x*100}%`;a.el.style.top=`${a.y*100}%`});objects.forEach(o=>{if(o.type==="goal"){o.done=false;o.el.classList.remove("completed")}});feedback.textContent="Agents reset; world objects preserved.";log("Reset all agents and scores");status()});
 $(".environment-modes").addEventListener("click",e=>{const b=e.target.closest("[data-mode]");if(!b)return;mode=b.dataset.mode;document.querySelectorAll(".mode-button").forEach(x=>{x.classList.toggle("is-active",x===b);x.setAttribute("aria-pressed",String(x===b))});log(`Behavior changed to ${mode}`)});pauseButton.addEventListener("click",()=>{paused=!paused;pauseButton.textContent=paused?"Resume simulation":"Pause simulation";pauseButton.setAttribute("aria-pressed",String(paused));if(!paused){lastFrame=0;requestAnimationFrame(tick)}feedback.textContent=paused?"Simulation paused.":"Simulation resumed."});form.addEventListener("submit",e=>{e.preventDefault();send(input.value)});$("#agent-select").addEventListener("change",e=>{const id=Number(e.target.value),agent=ensureAgent(id);$("#agent-picker-status").textContent=agent?`Using Agent ${id}`:"Agent unavailable";if(agent){feedback.textContent=`Agent ${id} selected for chat.`;log(`Selected Agent ${id} for conversation`)}});document.querySelectorAll(".suggestion").forEach(b=>b.addEventListener("click",()=>send(b.dataset.prompt)));input.addEventListener("keydown",e=>{if(e.key==="Enter"&&!e.shiftKey){e.preventDefault();form.requestSubmit()}});createAgent(.26,.5);requestAnimationFrame(tick);
