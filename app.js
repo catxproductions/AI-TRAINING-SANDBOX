@@ -42,7 +42,7 @@ function resolveAgentCollisions(r,now){
       b.y=Math.max(minY/r.height,Math.min(maxY/r.height,b.y));
       a.el.style.left=`${a.x*100}%`;a.el.style.top=`${a.y*100}%`;
       b.el.style.left=`${b.x*100}%`;b.el.style.top=`${b.y*100}%`;
-      a.el.classList.add("is-colliding");b.el.classList.add("is-colliding");
+      if(!a.el.classList.contains("is-colliding")){a.el.classList.add("is-colliding");setTimeout(()=>a.el.classList.remove("is-colliding"),180)}if(!b.el.classList.contains("is-colliding")){b.el.classList.add("is-colliding");setTimeout(()=>b.el.classList.remove("is-colliding"),180)}
       const key=`${a.id}-${b.id}`;
       if(now-(collisionLogAt.get(key)||0)>1400){
         collisionLogAt.set(key,now);
