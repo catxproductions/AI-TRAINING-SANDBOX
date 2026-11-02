@@ -1,0 +1,4 @@
+/* Alternate-route cues: distinguish deliberate detours from aimless wandering. */
+.agent-orb.is-detouring {
+  box-shadow: 0 5px 16px rgba(34, 80, 73, .25), 0 0 0 7px rgba(75, 120, 194, .16);
+}
