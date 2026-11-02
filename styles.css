@@ -5,3 +5,5 @@
 .agent-picker{display:flex;align-items:center;flex-wrap:wrap;gap:9px;margin:10px 0 8px;padding:8px 10px;border:1px solid #f0f5ec73;background:#1f534c2b}.agent-picker label{color:#e2eee5;font:500 .54rem "DM Mono",monospace;letter-spacing:.08em}.agent-picker select{min-width:170px;padding:7px 28px 7px 9px;border:1px solid #18363345;border-radius:0;background:#f3f1e9;color:#263f3d;font:600 .65rem "DM Sans",sans-serif}.agent-picker span{color:#dbe8df;font:.52rem "DM Mono",monospace}.composer{margin-top:0}
 
 .agent-orb.is-colliding{box-shadow:0 0 0 7px #e5b76b66,0 5px 16px #22504947;filter:brightness(1.12)}
+
+#llm-status{display:inline-block;color:#f5e8bd;font-weight:600;letter-spacing:.01em;}
