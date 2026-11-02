@@ -1,0 +1,21 @@
+/* State-based feedback for the autonomous sandbox agents. */
+.agent-orb.is-frustrated {
+  animation: agent-frustration .18s steps(2, end) infinite;
+  background: radial-gradient(circle at 34% 28%, #ffd1bc, #dd745d 62%, #a8433c) !important;
+  box-shadow: 0 0 0 7px rgba(221, 116, 93, .2), 0 5px 16px rgba(111, 44, 37, .3) !important;
+}
+@keyframes agent-frustration {
+  0% { transform: translate(-50%, -50%) translate(0, 0) rotate(-2deg); filter: saturate(1.2); }
+  25% { transform: translate(-50%, -50%) translate(-2px, 1px) rotate(2deg); filter: saturate(1.8); }
+  50% { transform: translate(-50%, -50%) translate(2px, -1px) rotate(-1deg); filter: saturate(1.25); }
+  75% { transform: translate(-50%, -50%) translate(-1px, -2px) rotate(2deg); filter: saturate(1.7); }
+  100% { transform: translate(-50%, -50%) translate(1px, 1px) rotate(0); filter: saturate(1.35); }
+}
+.agent-orb[data-state="calm"] { animation: agent-breathe 4s ease-in-out infinite; }
+@keyframes agent-breathe {
+  0%, 100% { box-shadow: 0 5px 16px rgba(34, 80, 73, .22), 0 0 0 1px rgba(31, 83, 75, .16); }
+  50% { box-shadow: 0 8px 22px rgba(34, 80, 73, .28), 0 0 0 7px rgba(67, 143, 134, .09); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .agent-orb.is-frustrated, .agent-orb[data-state="calm"] { animation: none; }
+}
