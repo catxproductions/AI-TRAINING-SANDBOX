@@ -3,7 +3,7 @@
    sent to an inference server: generation runs on this device. */
 (function(){
   "use strict";
-  const MODEL_MATCH=/Qwen2-0\.5B-Instruct/i;
+  const MODEL_MATCH=/Qwen2(?:\.5)?-0\.5B-Instruct/i;
   let engine=null, loading=null, busy=false, queue=Promise.resolve(), modelId=null;
   const memories=new Map();
   const statusEl=()=>document.getElementById("llm-status");
