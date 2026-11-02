@@ -1,32 +1,17 @@
 # AI Training Sandbox
 
-A small, API-key-free starting point for experimenting with a local agent. It is intentionally a deterministic tool-using demo—not a trained foundation model and not general-purpose AI. It uses Python's standard library and browser JavaScript; no API keys, paid services, or Python packages are needed.
+A browser-only agent simulation and learning sandbox. Open `index.html` directly or publish the repository with GitHub Pages; no terminal commands, Python server, packages, API keys, or backend are required.
 
-## Run it
+## What you can do
 
-Requires Python 3.10 or newer.
+- Watch autonomous agents explore, sense nearby obstacles, pursue goals, and attempt alternate routes when a direct route is blocked.
+- Place goals and obstacles, remove world objects, add up to five agents, or reset agent state.
+- Reward or penalize an agent by selecting an action and clicking near its orb. Feedback changes its score and behavior state.
+- Observe frustration cues when an agent stops making progress toward a goal; agents try another route and can recover.
+- Use the local chat for simple plans and arithmetic, and save/read notes in browser storage.
 
-```bash
-python3 server.py
-```
+This is a transparent, rule-based JavaScript simulation, not a trained AI model. Notes stay in browser local storage. Google Fonts are a visual enhancement only; the app works if they are unavailable.
 
-Open <http://127.0.0.1:8000>. Stop the server with Ctrl+C. The server binds to loopback only, so it is available only on the same machine by default.
+## GitHub Pages
 
-## What the agent can do
-
-- **Plan:** create a small three-step starter plan from a goal.
-- **Calculate:** evaluate basic arithmetic through a restricted AST parser. It does not use `eval()`.
-- **Remember / show notes:** save and read up to 50 notes in `notes.json` next to the Python files.
-- **Fallback:** explain its limits rather than pretending it knows current or general facts.
-
-The agent follows a small local loop: classify the request, choose an explicitly supported tool, run that tool, and return a result. It cannot run shell commands, access the internet, or use arbitrary tools. The web fonts are an optional visual enhancement; the application and agent do not call an AI API.
-
-## Test
-
-```bash
-python3 -m unittest -v
-```
-
-## Next steps
-
-This starter is a foundation for agent architecture, not a model trained from scratch. Training a capable language model requires a large dataset and substantial compute. The next practical extension is a pluggable local inference backend (for example, an installed open-weight model), with this tool allowlist retained and each consequential action gated by user approval.
+Enable GitHub Pages for this repository from the `main` branch (root folder). The published static site can be opened in a browser without installing or running anything.
