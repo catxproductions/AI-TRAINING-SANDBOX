@@ -97,6 +97,7 @@ let planningAgentId=null;
 function planAgent(a,now){
   if(!window.LocalAgentLLM||!window.LocalAgentLLM.isReady()||planningAgentId!==null||now-(a.lastPlanAt||0)<22000)return;
   planningAgentId=a.id;
+  a.lastPlanAt=now;
   const world={
     mood:a.emotion.label,state:a.state,currentIntent:a.intent||"explore",
     nearbyObstacles:a.nearby,unfinishedGoals:objects.filter(o=>o.type==="goal"&&!o.done).length,
@@ -127,7 +128,7 @@ window.SandboxBaseAnswer=answer;
 function ensureAgent(id){while(!agents.some(a=>a.id===id)&&agents.length<5){const n=agents.length;createAgent(.24+(n%3)*.12,.38+Math.floor(n/3)*.18)}return agents.find(a=>a.id===id)}
 async function agentResponse(text,id){
   const agent=ensureAgent(id);
-  if(/^(?:define|meaning of|look up|dictionary)\\s+[a-z'-]+[?.!]*$/i.test(text)||/^what does\\s+[a-z'-]+\\s+mean[?.!]*$/i.test(text)){
+  if(/^(?:define|meaning of|look up|dictionary)\s+[a-z'-]+[?.!]*$/i.test(text)||/^what does\s+[a-z'-]+\s+mean[?.!]*$/i.test(text)){
     return window.SandboxLanguage?await window.SandboxLanguage.respond(text,agent):"Dictionary lookup is unavailable.";
   }
   if(!window.LocalAgentLLM)throw new Error("Local AI runtime did not load. Refresh the page and try again.");
