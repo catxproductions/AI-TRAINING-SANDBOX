@@ -148,3 +148,30 @@ button:focus-visible, select:focus-visible { outline: 3px solid #4d9d8d; outline
   .version-chip { display: none; }
   .footer { font-size: .48rem; }
 }
+
+/* Keep the world in normal document flow so grid sizing cannot collapse it. */
+.page-shell {
+  height: auto;
+  grid-template-rows: auto auto auto auto;
+}
+.stage {
+  min-height: auto;
+  align-items: start;
+}
+.interaction-panel {
+  grid-template-rows: auto auto auto minmax(72px, auto) auto auto auto;
+}
+.agent-arena {
+  display: block;
+  width: 100%;
+  height: clamp(320px, 52vh, 540px);
+  min-height: 320px;
+  background-color: #e8f0eb;
+}
+@media (max-width: 980px), (max-height: 760px) {
+  .interaction-panel { grid-template-rows: auto auto auto auto auto auto auto; }
+  .agent-arena { height: clamp(320px, 48vh, 540px); min-height: 320px; }
+}
+@media (max-width: 520px) {
+  .agent-arena { height: max(280px, 42vh); min-height: 280px; }
+}
