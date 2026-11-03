@@ -140,18 +140,14 @@
   window.AgentFiveBehavior={initialize,update,scoreDetour,steering};
 })();
 
-// The steering layer avoids obstacles, but avoidance alone is not a physical
-// collision: fast-moving agents can still cross an obstacle between frames.
 // Resolve overlap against the actual rendered obstacle rectangles each frame.
 (function(){
   "use strict";
   const collisionTimers=new WeakMap();
-
   function resolveObstacleContacts(){
     if(typeof agents==="undefined"||typeof objects==="undefined"||typeof arena==="undefined")return;
     const bounds=arena.getBoundingClientRect();
     if(!bounds.width||!bounds.height)return;
-
     const obstacles=objects.filter(object=>object.type==="obstacle"&&object.el).map(object=>object.el.getBoundingClientRect());
     for(const agent of agents){
       if(!agent.el)continue;
@@ -160,64 +156,87 @@
       let centerX=agentRect.left+agentRect.width/2;
       let centerY=agentRect.top+agentRect.height/2;
       let collided=false;
-
       for(const rect of obstacles){
         const nearestX=Math.max(rect.left,Math.min(centerX,rect.right));
         const nearestY=Math.max(rect.top,Math.min(centerY,rect.bottom));
-        let dx=centerX-nearestX;
-        let dy=centerY-nearestY;
-        let distance=Math.hypot(dx,dy);
+        const dx=centerX-nearestX,dy=centerY-nearestY;
+        const distance=Math.hypot(dx,dy);
         if(distance>=radius)continue;
-
         let nx,ny,overlap;
-        if(distance>0){
-          nx=dx/distance;
-          ny=dy/distance;
-          overlap=radius-distance;
-        }else{
-          // The orb's center is inside the obstacle; eject it through the
-          // nearest face with enough room for the entire orb to clear it.
-          const faces=[
-            {gap:centerX-rect.left,nx:-1,ny:0},
-            {gap:rect.right-centerX,nx:1,ny:0},
-            {gap:centerY-rect.top,nx:0,ny:-1},
-            {gap:rect.bottom-centerY,nx:0,ny:1},
-          ].sort((a,b)=>a.gap-b.gap);
-          ({nx,ny}=faces[0]);
-          overlap=radius+faces[0].gap;
+        if(distance>0){nx=dx/distance;ny=dy/distance;overlap=radius-distance;}
+        else{
+          const faces=[{gap:centerX-rect.left,nx:-1,ny:0},{gap:rect.right-centerX,nx:1,ny:0},{gap:centerY-rect.top,nx:0,ny:-1},{gap:rect.bottom-centerY,nx:0,ny:1}].sort((a,b)=>a.gap-b.gap);
+          ({nx,ny}=faces[0]);overlap=radius+faces[0].gap;
         }
-
-        centerX+=nx*(overlap+.5);
-        centerY+=ny*(overlap+.5);
+        centerX+=nx*(overlap+.5);centerY+=ny*(overlap+.5);
         const velocityAlongNormal=(agent.vx||0)*nx+(agent.vy||0)*ny;
-        if(velocityAlongNormal<0){
-          const restitution=.45;
-          agent.vx-= (1+restitution)*velocityAlongNormal*nx;
-          agent.vy-= (1+restitution)*velocityAlongNormal*ny;
-        }
+        if(velocityAlongNormal<0){const restitution=.45;agent.vx-=(1+restitution)*velocityAlongNormal*nx;agent.vy-=(1+restitution)*velocityAlongNormal*ny;}
         collided=true;
       }
-
       if(!collided)continue;
       centerX=Math.max(bounds.left+radius,Math.min(bounds.right-radius,centerX));
       centerY=Math.max(bounds.top+radius,Math.min(bounds.bottom-radius,centerY));
-      agent.x=(centerX-bounds.left)/bounds.width;
-      agent.y=(centerY-bounds.top)/bounds.height;
-      agent.el.style.left=`${agent.x*100}%`;
-      agent.el.style.top=`${agent.y*100}%`;
+      agent.x=(centerX-bounds.left)/bounds.width;agent.y=(centerY-bounds.top)/bounds.height;
+      agent.el.style.left=`${agent.x*100}%`;agent.el.style.top=`${agent.y*100}%`;
       agent.el.classList.add("is-colliding");
-      const existing=collisionTimers.get(agent.el);
-      if(!existing){
-        collisionTimers.set(agent.el,setTimeout(()=>{
-          agent.el.classList.remove("is-colliding");
-          collisionTimers.delete(agent.el);
-        },180));
-      }
+      if(!collisionTimers.has(agent.el))collisionTimers.set(agent.el,setTimeout(()=>{agent.el.classList.remove("is-colliding");collisionTimers.delete(agent.el);},180));
     }
     requestAnimationFrame(resolveObstacleContacts);
   }
-
-  // All deferred scripts execute before the first animation-frame callback,
-  // so app.js has initialized the shared simulation state by this point.
   requestAnimationFrame(resolveObstacleContacts);
+})();
+
+// Show concise, observable decision summaries rather than private chain-of-thought.
+(function(){
+  "use strict";
+  function explanation(intent,world){
+    const obstacles=Array.isArray(world.nearbyObstacles)?world.nearbyObstacles.length:Number(world.nearbyObstacles)||0;
+    const agents=Array.isArray(world.nearbyAgents)?world.nearbyAgents.length:0;
+    const goals=Number(world.unfinishedGoals)||0;
+    switch(intent){
+      case "seek_goal":return goals?`Pursuing a goal (${goals} unfinished).`:"Seeking a goal; none are currently unfinished.";
+      case "investigate_obstacle":return obstacles?`Investigating a nearby obstacle (${obstacles} detected).`:"Investigating the environment for obstacles.";
+      case "avoid_crowd":return agents?`Making space from nearby agents (${agents} in range).`:"Choosing a less crowded route.";
+      case "approach_agent":case "cooperate":return agents?`Responding to nearby agents (${agents} in range).`:"Looking for an agent to interact with.";
+      case "explore":default:return goals?`Exploring while ${goals} goal${goals===1?" is":"s are"} unfinished; ${obstacles} nearby obstacle${obstacles===1?"":"s"} detected.`:"Exploring; no unfinished goals are present.";
+    }
+  }
+  function install(){
+    const api=window.LocalAgentLLM;
+    const activity=document.querySelector(".activity-panel");
+    if(!activity||!api||typeof api.decide!=="function")return false;
+    if(document.getElementById("decision-summary-log"))return true;
+    const style=document.createElement("style");
+    style.textContent=".decision-summary-log{margin:12px 0;padding:12px 14px;border:1px solid #438f8655;background:#edf3ed;border-radius:8px;color:#263f3d}.decision-summary-log h3{margin:0 0 3px;font-size:.95rem}.decision-summary-log p{margin:0 0 8px;color:#647d78;font-size:.8rem}.decision-summary-log ol{list-style:none;padding:0;margin:0;max-height:150px;overflow:auto}.decision-summary-log li{padding:7px 0;border-top:1px solid #263f3d22;font-size:.82rem}.decision-summary-log time{color:#647d78;font-size:.72rem;margin-right:6px}.decision-summary-log strong{margin-right:5px}";
+    document.head.append(style);
+    const section=document.createElement("section");
+    section.className="decision-summary-log";
+    section.id="decision-summary-log";
+    section.setAttribute("aria-label","AI decision summaries");
+    section.innerHTML='<h3>AI decision summaries</h3><p>Brief explanations based on visible simulation state—not private chain-of-thought.</p><ol aria-live="polite"><li>Summaries appear as agents make decisions.</li></ol>';
+    const heading=activity.querySelector(".activity-heading");
+    if(heading)heading.insertAdjacentElement("afterend",section);else activity.prepend(section);
+    const list=section.querySelector("ol");
+    const original=api.decide;
+    api.decide=function(agent,world){
+      return Promise.resolve(original.call(this,agent,world)).then(plan=>{
+        if(plan){
+          const item=document.createElement("li");
+          const time=document.createElement("time");
+          time.dateTime=new Date().toISOString();
+          time.textContent=new Date().toLocaleTimeString();
+          const label=document.createElement("strong");
+          label.textContent=`Agent ${agent.id} · ${plan.intent.replaceAll("_"," ")}`;
+          item.append(time,label,document.createTextNode(explanation(plan.intent,world||{})));
+          if(list.firstElementChild?.textContent.includes("Summaries appear"))list.replaceChildren();
+          list.prepend(item);
+          while(list.children.length>12)list.lastElementChild.remove();
+        }
+        return plan;
+      });
+    };
+    return true;
+  }
+  if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",install,{once:true});
+  else install();
 })();
