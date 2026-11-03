@@ -1,6 +1,4 @@
-@import url("https://raw.githubusercontent.com/catxproductions/AI-TRAINING-SANDBOX/6ba104444aff612492aabe8792daa674ba346f4c/styles.css");
-
-/* Dashboard layout with a visible, usable simulation canvas at every viewport. */
+/* Standalone styles: do not rely on a remote @import for core simulation visuals. */
 :root {
   color-scheme: light;
   --teal: #287c70;
@@ -18,160 +16,143 @@
 * { box-sizing: border-box; }
 html, body { min-height: 100%; }
 body { margin: 0; background: #f4f6f3; color: var(--ink); }
+button, select { font: inherit; }
+button { cursor: pointer; transition: transform .14s ease, box-shadow .14s ease, background-color .14s ease; }
+button:hover { transform: translateY(-1px); }
+button:focus-visible, select:focus-visible { outline: 3px solid #4d9d8d; outline-offset: 2px; }
+
 .page-shell {
   width: min(1540px, 100%);
   min-height: 100svh;
   margin: 0 auto;
   padding: 14px 20px 10px;
   display: grid;
-  grid-template-rows: auto minmax(0, 1fr) minmax(94px, 15vh) auto;
+  grid-template-rows: auto auto auto auto;
   gap: 10px;
 }
-.title-bar {
-  min-height: 42px;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 0 2px;
-}
+.title-bar { min-height: 42px; display: flex; align-items: center; justify-content: space-between; padding: 0 2px; }
 .title-bar h1 { margin: 0; font-size: clamp(1.2rem, 2vw, 1.65rem); line-height: 1.1; letter-spacing: -.035em; color: #173c36; }
 .local-badge { font-size: .75rem; font-weight: 600; }
-.stage {
-  min-height: 0;
-  display: grid;
-  grid-template-columns: minmax(0, 2.15fr) minmax(250px, .85fr);
-  gap: 12px;
-}
+.stage { min-height: auto; display: grid; grid-template-columns: minmax(0, 2.15fr) minmax(250px, .85fr); align-items: start; gap: 12px; }
 .interaction-panel, .tools-panel, .activity-panel, .side-card { min-width: 0; min-height: 0; }
 .interaction-panel, .tools-panel { border: 1px solid var(--line); border-radius: 12px; background: #fff; box-shadow: 0 3px 14px #1e3d3210; }
-.interaction-panel {
-  padding: 12px;
-  display: grid;
-  grid-template-rows: auto minmax(300px, 1fr) auto minmax(72px, .48fr) auto auto auto;
-  gap: 8px;
-  overflow: visible;
-}
-.panel-heading { min-height: 34px; margin: 0; }
+.interaction-panel { padding: 12px; display: grid; grid-template-rows: auto auto auto minmax(72px, auto) auto auto auto; gap: 8px; overflow: visible; }
+.panel-heading { min-height: 34px; margin: 0; display: flex; align-items: center; justify-content: space-between; gap: 10px; }
 .panel-heading h2, .card-heading h2, .activity-heading h2 { margin: 0; font-size: 1.02rem; line-height: 1.2; letter-spacing: -.02em; }
 .panel-heading .eyebrow, .activity-heading .eyebrow { margin: 0 0 2px; font-size: .58rem; letter-spacing: .12em; }
 .version-chip { font-size: .55rem; }
 .agent-arena {
   position: relative;
-  min-height: 300px;
-  height: min(52vh, 540px);
-  border: 1px solid #d5e2dc;
-  border-radius: 9px;
+  display: block;
+  width: 100%;
+  height: clamp(320px, 52vh, 540px);
+  min-height: 320px;
   overflow: hidden;
   isolation: isolate;
+  border: 1px solid #bdd2c8;
+  border-radius: 10px;
+  background-color: #e8f0eb;
+  background-image: linear-gradient(rgba(67, 117, 98, .10) 1px, transparent 1px), linear-gradient(90deg, rgba(67, 117, 98, .10) 1px, transparent 1px), radial-gradient(ellipse at 50% 45%, #f5f8f4 0%, #e6efe9 78%);
+  background-size: 32px 32px, 32px 32px, auto;
+  box-shadow: inset 0 0 30px rgba(37, 91, 73, .08);
+  cursor: crosshair;
 }
-.arena-label { top: 9px; left: 10px; font-size: .58rem; z-index: 3; }
-.arena-coordinate { top: 9px; right: 10px; font-size: .62rem; z-index: 3; }
-.arena-hint { bottom: 7px; font-size: .59rem; z-index: 3; }
+.arena-label, .arena-coordinate, .arena-hint { position: absolute; z-index: 4; }
+.arena-label { top: 10px; left: 12px; display: inline-flex; align-items: center; gap: 6px; padding: 5px 8px; border: 1px solid #c9d9d0; border-radius: 999px; background: rgba(255,255,255,.9); color: #31584e; font-size: .62rem; font-weight: 700; letter-spacing: .08em; }
+.arena-live-dot, .status-dot { display: inline-block; width: 7px; height: 7px; border-radius: 50%; background: #55a982; box-shadow: 0 0 0 3px rgba(85,169,130,.15); }
+.arena-coordinate { top: 10px; right: 12px; padding: 5px 8px; border-radius: 6px; background: rgba(255,255,255,.9); color: #46655b; font: 500 .65rem "DM Mono", monospace; }
+.arena-hint { bottom: 9px; left: 50%; max-width: calc(100% - 24px); margin: 0; padding: 5px 9px; transform: translateX(-50%); border: 1px solid #d5e1da; border-radius: 6px; background: rgba(255,255,255,.88); color: #557067; font-size: .62rem; text-align: center; }
 .world-objects, .agent-layer { position: absolute; inset: 0; pointer-events: none; }
 .world-objects { z-index: 1; }
 .agent-layer { z-index: 2; }
+/* Explicitly style simulation entities so the world remains legible without external CSS. */
+.agent-orb {
+  position: absolute;
+  z-index: 2;
+  display: grid;
+  place-items: center;
+  width: 48px;
+  height: 48px;
+  border: 3px solid #fff;
+  border-radius: 50%;
+  background: radial-gradient(circle at 32% 25%, #b8e4d4, #438f86 62%, #28665e);
+  color: #fff;
+  font-size: 1rem;
+  font-weight: 700;
+  box-shadow: 0 4px 14px rgba(28, 74, 65, .32), 0 0 0 4px rgba(67, 143, 134, .14);
+  transform: translate(-50%, -50%);
+  transition: box-shadow .2s ease, filter .2s ease;
+}
+.agent-orb.agent-five { border-color: #fff1bd; background: radial-gradient(circle at 32% 25%, #ffe6a5, #d39b37 58%, #80551f); color: #493312; }
+.agent-orb.is-frustrated { background: radial-gradient(circle at 34% 28%, #ffd1bc, #dd745d 62%, #a8433c); }
+.agent-orb.is-colliding { box-shadow: 0 0 0 7px rgba(229,183,107,.4), 0 5px 16px rgba(34,80,73,.3); }
+.world-part {
+  position: absolute;
+  z-index: 1;
+  display: grid;
+  place-items: center;
+  min-width: 34px;
+  min-height: 34px;
+  transform: translate(-50%, -50%);
+  border: 2px solid rgba(255,255,255,.9);
+  box-shadow: 0 3px 10px rgba(28, 60, 49, .2);
+}
+.world-part.goal { width: 38px; height: 38px; border-radius: 50%; background: #f0c66e; color: #684c16; }
+.world-part.obstacle { width: 56px; height: 46px; border-radius: 8px; background: #788c84; color: white; }
+.world-part.reward { width: 38px; height: 38px; border-radius: 10px; background: #85bd91; color: #173c2a; }
+.world-part-label { position: absolute; top: calc(100% + 4px); left: 50%; padding: 2px 5px; border-radius: 4px; background: rgba(255,255,255,.92); color: #36534a; font-size: .58rem; white-space: nowrap; transform: translateX(-50%); }
 .environment-controls { min-height: 28px; margin: 0; padding: 0; display: flex; align-items: center; gap: 8px; }
 .controls-label { font-size: .58rem; }
-.environment-modes { gap: 5px; }
-.mode-button { min-height: 27px; padding: 4px 10px; font-size: .7rem; }
-.conversation {
-  min-height: 72px;
-  max-height: 180px;
-  margin: 0;
-  padding: 8px 10px;
-  overflow: auto;
-  border: 1px solid #e6ece8;
-  border-radius: 8px;
-  background: #fafcfb;
-}
+.environment-modes { display: flex; gap: 5px; }
+.mode-button { min-height: 27px; padding: 4px 10px; border: 1px solid #cedbd4; border-radius: 6px; background: #f7faf8; color: #31564d; font-size: .7rem; }
+.mode-button.is-selected, .mode-button[aria-pressed="true"] { background: #287c70; color: #fff; }
+.conversation { min-height: 72px; max-height: 180px; margin: 0; padding: 8px 10px; overflow: auto; border: 1px solid #e6ece8; border-radius: 8px; background: #fafcfb; }
 .message { margin: 0; padding: 4px 0; }
 .message p { margin: 0; font-size: .78rem; line-height: 1.4; }
 .avatar { width: 25px; height: 25px; flex: 0 0 25px; font-size: .7rem; }
 .suggestions { min-height: 25px; margin: 0; display: flex; flex-wrap: nowrap; gap: 6px; overflow-x: auto; }
 .suggestion { padding: 5px 9px; white-space: nowrap; font-size: .66rem; }
-.agent-picker { min-height: 28px; margin: 0; padding: 4px 8px; gap: 7px; }
+.agent-picker { min-height: 28px; margin: 0; padding: 4px 8px; display: flex; align-items: center; gap: 7px; }
 .agent-picker label { font-size: .58rem; }
 .agent-picker select { min-height: 24px; padding: 2px 6px; font-size: .7rem; }
 .privacy-note { margin: 0; font-size: .58rem; line-height: 1.3; }
 .tools-panel { padding: 10px; display: grid; grid-template-rows: minmax(0, 1.45fr) minmax(0, .8fr); gap: 10px; overflow: hidden; }
 .side-card { padding: 11px; border: 1px solid #e0e8e3; border-radius: 9px; background: #fbfcfb; overflow: auto; }
-.card-heading { margin: 0 0 7px; gap: 7px; }
+.card-heading { margin: 0 0 7px; display: flex; align-items: center; gap: 7px; }
 .card-index { font-size: .6rem; }
 .control-intro, .agent-state-copy { margin: 0 0 8px; font-size: .72rem; line-height: 1.4; }
 .world-controls { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; }
-.world-button { min-height: 44px; padding: 6px 8px; gap: 7px; border-radius: 7px; }
+.world-button { min-height: 44px; padding: 6px 8px; display: flex; align-items: center; gap: 7px; border: 1px solid #dce6e0; border-radius: 7px; background: #fff; color: #294a41; }
 .world-button-icon { font-size: .95rem; }
 .world-button strong { font-size: .7rem; }
 .world-button small { font-size: .58rem; }
 .reset-button, .cancel-action { min-height: 30px; margin-top: 7px; padding: 5px 9px; font-size: .68rem; }
-.activity-panel {
-  padding: 9px 12px;
-  display: grid;
-  grid-template-columns: minmax(150px, .28fr) minmax(0, 1fr);
-  align-items: center;
-  gap: 10px;
-  border: 1px solid var(--line);
-  border-radius: 10px;
-  background: #fff;
-  box-shadow: 0 3px 14px #1e3d3210;
-  overflow: hidden;
-}
+.activity-panel { min-height: 100px; padding: 9px 12px; display: grid; grid-template-columns: minmax(150px, .28fr) minmax(0, 1fr); align-items: center; gap: 10px; border: 1px solid var(--line); border-radius: 10px; background: #fff; box-shadow: 0 3px 14px #1e3d3210; overflow: hidden; }
 .activity-heading { margin: 0; }
 .activity-heading h2 { font-size: .95rem; }
 #activity-list { max-height: 100%; margin: 0; padding: 0 4px 0 18px; overflow: auto; font-size: .68rem; line-height: 1.45; }
 #activity-list li { padding: 2px 0; }
 .footer { min-height: 14px; display: flex; justify-content: space-between; align-items: center; font-size: .55rem; letter-spacing: .08em; }
-button, select { font: inherit; }
-button { transition: transform .14s ease, box-shadow .14s ease, background-color .14s ease; }
-button:hover { transform: translateY(-1px); }
-button:focus-visible, select:focus-visible { outline: 3px solid #4d9d8d; outline-offset: 2px; }
 
-/* Stack panels on tablets and short screens instead of crushing the simulation. */
 @media (max-width: 980px), (max-height: 760px) {
   .page-shell { height: auto; min-height: 100svh; display: block; overflow: visible; padding: 12px; }
   .title-bar { margin-bottom: 10px; }
   .stage { display: flex; flex-direction: column; }
-  .interaction-panel { min-height: 0; grid-template-rows: auto minmax(320px, 48vh) auto auto auto auto auto; margin-bottom: 10px; }
-  .agent-arena { height: max(320px, 48vh); min-height: 320px; }
+  .interaction-panel { min-height: 0; grid-template-rows: auto auto auto auto auto auto auto; margin-bottom: 10px; }
+  .agent-arena { height: clamp(320px, 48vh, 540px); min-height: 320px; }
   .conversation { max-height: 180px; }
-  .tools-panel { min-height: 330px; grid-template-rows: auto auto; }
+  .tools-panel { width: 100%; min-height: 330px; grid-template-rows: auto auto; }
   .activity-panel { min-height: 120px; margin-top: 10px; }
   .footer { margin-top: 10px; }
 }
 @media (max-width: 520px) {
+  .page-shell { padding: 10px; }
   .stage { gap: 8px; }
   .interaction-panel { padding: 9px; }
-  .agent-arena { height: 42vh; min-height: 280px; }
+  .agent-arena { height: max(280px, 42vh); min-height: 280px; }
   .tools-panel { grid-template-rows: auto auto; }
   .activity-panel { grid-template-columns: 1fr; gap: 5px; }
   .world-controls { grid-template-columns: 1fr 1fr; }
   .version-chip { display: none; }
   .footer { font-size: .48rem; }
-}
-
-/* Keep the world in normal document flow so grid sizing cannot collapse it. */
-.page-shell {
-  height: auto;
-  grid-template-rows: auto auto auto auto;
-}
-.stage {
-  min-height: auto;
-  align-items: start;
-}
-.interaction-panel {
-  grid-template-rows: auto auto auto minmax(72px, auto) auto auto auto;
-}
-.agent-arena {
-  display: block;
-  width: 100%;
-  height: clamp(320px, 52vh, 540px);
-  min-height: 320px;
-  background-color: #e8f0eb;
-}
-@media (max-width: 980px), (max-height: 760px) {
-  .interaction-panel { grid-template-rows: auto auto auto auto auto auto auto; }
-  .agent-arena { height: clamp(320px, 48vh, 540px); min-height: 320px; }
-}
-@media (max-width: 520px) {
-  .agent-arena { height: max(280px, 42vh); min-height: 280px; }
 }
