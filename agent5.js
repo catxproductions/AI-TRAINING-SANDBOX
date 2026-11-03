@@ -181,3 +181,4 @@
 
   window.AgentFiveBehavior={initialize,update,scoreDetour,steering};
 })();
+
