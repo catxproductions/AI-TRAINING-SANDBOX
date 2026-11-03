@@ -139,3 +139,85 @@
   };
   window.AgentFiveBehavior={initialize,update,scoreDetour,steering};
 })();
+
+// The steering layer avoids obstacles, but avoidance alone is not a physical
+// collision: fast-moving agents can still cross an obstacle between frames.
+// Resolve overlap against the actual rendered obstacle rectangles each frame.
+(function(){
+  "use strict";
+  const collisionTimers=new WeakMap();
+
+  function resolveObstacleContacts(){
+    if(typeof agents==="undefined"||typeof objects==="undefined"||typeof arena==="undefined")return;
+    const bounds=arena.getBoundingClientRect();
+    if(!bounds.width||!bounds.height)return;
+
+    const obstacles=objects.filter(object=>object.type==="obstacle"&&object.el).map(object=>object.el.getBoundingClientRect());
+    for(const agent of agents){
+      if(!agent.el)continue;
+      const agentRect=agent.el.getBoundingClientRect();
+      const radius=Math.max(agentRect.width,agentRect.height)/2;
+      let centerX=agentRect.left+agentRect.width/2;
+      let centerY=agentRect.top+agentRect.height/2;
+      let collided=false;
+
+      for(const rect of obstacles){
+        const nearestX=Math.max(rect.left,Math.min(centerX,rect.right));
+        const nearestY=Math.max(rect.top,Math.min(centerY,rect.bottom));
+        let dx=centerX-nearestX;
+        let dy=centerY-nearestY;
+        let distance=Math.hypot(dx,dy);
+        if(distance>=radius)continue;
+
+        let nx,ny,overlap;
+        if(distance>0){
+          nx=dx/distance;
+          ny=dy/distance;
+          overlap=radius-distance;
+        }else{
+          // The orb's center is inside the obstacle; eject it through the
+          // nearest face with enough room for the entire orb to clear it.
+          const faces=[
+            {gap:centerX-rect.left,nx:-1,ny:0},
+            {gap:rect.right-centerX,nx:1,ny:0},
+            {gap:centerY-rect.top,nx:0,ny:-1},
+            {gap:rect.bottom-centerY,nx:0,ny:1},
+          ].sort((a,b)=>a.gap-b.gap);
+          ({nx,ny}=faces[0]);
+          overlap=radius+faces[0].gap;
+        }
+
+        centerX+=nx*(overlap+.5);
+        centerY+=ny*(overlap+.5);
+        const velocityAlongNormal=(agent.vx||0)*nx+(agent.vy||0)*ny;
+        if(velocityAlongNormal<0){
+          const restitution=.45;
+          agent.vx-= (1+restitution)*velocityAlongNormal*nx;
+          agent.vy-= (1+restitution)*velocityAlongNormal*ny;
+        }
+        collided=true;
+      }
+
+      if(!collided)continue;
+      centerX=Math.max(bounds.left+radius,Math.min(bounds.right-radius,centerX));
+      centerY=Math.max(bounds.top+radius,Math.min(bounds.bottom-radius,centerY));
+      agent.x=(centerX-bounds.left)/bounds.width;
+      agent.y=(centerY-bounds.top)/bounds.height;
+      agent.el.style.left=`${agent.x*100}%`;
+      agent.el.style.top=`${agent.y*100}%`;
+      agent.el.classList.add("is-colliding");
+      const existing=collisionTimers.get(agent.el);
+      if(!existing){
+        collisionTimers.set(agent.el,setTimeout(()=>{
+          agent.el.classList.remove("is-colliding");
+          collisionTimers.delete(agent.el);
+        },180));
+      }
+    }
+    requestAnimationFrame(resolveObstacleContacts);
+  }
+
+  // All deferred scripts execute before the first animation-frame callback,
+  // so app.js has initialized the shared simulation state by this point.
+  requestAnimationFrame(resolveObstacleContacts);
+})();
