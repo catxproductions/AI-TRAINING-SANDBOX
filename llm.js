@@ -8,16 +8,25 @@
   let mode=readPreferredMode();
   const memories=new Map();
   const statusEl=()=>document.getElementById("llm-status");
-  function setStatus(message){const el=statusEl();if(el)el.textContent=message;}
+
+  function setStatus(message){
+    const el=statusEl();
+    if(el)el.textContent=message;
+  }
+
   function readPreferredMode(){
     try{
       const saved=localStorage.getItem(MODE_KEY);
       if(saved==="lite"||saved==="standard")return saved;
-    }catch{/* Storage is optional. */}
+    }catch(err){
+      /* Storage is optional. */
+    }
+
     const memoryGiB=Number(navigator.deviceMemory)||0;
     const cores=Number(navigator.hardwareConcurrency)||0;
     return (memoryGiB&&memoryGiB<=4)||(cores&&cores<=4)?"lite":"standard";
   }
+
   function personality(agent){
     const common="You are an autonomous character inside a small 2D agent simulation. You have simulated moods, preferences, memory, and relationships. Speak naturally and briefly. Do not claim to have real human feelings.";
     const styles={
@@ -29,9 +38,12 @@
     };
     return common+" "+(styles[agent.id]||styles[1])+" You are Agent "+agent.id+".";
   }
+
   function updateMode(next){
     mode=next==="lite"?"lite":"standard";
-    try{localStorage.setItem(MODE_KEY,mode);}catch{/* Ignore unavailable storage. */}
+    try{localStorage.setItem(MODE_KEY,mode);}catch(err){
+      /* Ignore unavailable storage. */
+    }
     const selector=document.getElementById("llm-mode");
     if(selector)selector.value=mode;
     if(mode==="lite"){
@@ -42,6 +54,7 @@
       setStatus("Standard mode · local model loads when needed");
     }
   }
+
   function addModeSelector(){
     const status=statusEl();
     if(!status||document.getElementById("llm-mode"))return;
@@ -49,6 +62,7 @@
     label.htmlFor="llm-mode";
     label.textContent="AI MODE ";
     label.style.marginRight="6px";
+
     const select=document.createElement("select");
     select.id="llm-mode";
     select.setAttribute("aria-label","Choose local AI resource mode");
@@ -60,13 +74,19 @@
     select.value=mode;
     updateMode(mode);
   }
-  if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",addModeSelector,{once:true});
-  else addModeSelector();
+
+  if(document.readyState==="loading"){
+    document.addEventListener("DOMContentLoaded",addModeSelector,{once:true});
+  }else{
+    addModeSelector();
+  }
+
   function enqueue(task){
     const next=queue.then(task,task);
     queue=next.catch(()=>{});
     return next;
   }
+
   async function initialize(){
     if(mode==="lite")throw new Error("Lite mode is selected; local model loading is disabled.");
     if(engine)return engine;
@@ -75,6 +95,7 @@
       setStatus("WebGPU unavailable · choose Lite mode for basic replies");
       throw new Error("WebGPU is unavailable on this device or browser. Choose Lite mode or try a supported desktop browser.");
     }
+
     loading=(async()=>{
       setStatus("Loading local 0.5B model · first use downloads model weights");
       const webllm=await import("https://esm.run/@mlc-ai/web-llm");
@@ -98,8 +119,10 @@
       setStatus("Local AI unavailable · choose Lite mode or retry · "+(error.message||"initialization failed"));
       throw error;
     });
+
     return loading;
   }
+
   async function complete(messages,options={}){
     const e=await initialize();
     return enqueue(async()=>{
@@ -112,9 +135,12 @@
           top_p:.9
         });
         return (result.choices?.[0]?.message?.content||"").trim();
-      }finally{busy=false;}
+      }finally{
+        busy=false;
+      }
     });
   }
+
   function liteReply(agent,text,context=""){
     if(window.SandboxBaseAnswer){
       const basic=window.SandboxBaseAnswer(String(text));
@@ -128,6 +154,7 @@
     const state=String(context||"").slice(0,120);
     return "I heard you. I'm in Lite mode, so my replies are limited, but the simulation still works without loading a model."+(state?"":"");
   }
+
   async function chat(agent,text,context=""){
     if(mode==="lite")return liteReply(agent,text,context);
     const id=agent.id,history=memories.get(id)||[];
@@ -149,11 +176,13 @@
       throw error;
     }
   }
+
   async function agentConversation(a,b,context){
     const first=await chat(a,"You are near Agent "+b.id+". Start a brief natural conversation based on the situation.",context);
     const second=await chat(b,"Agent "+a.id+" said: \""+first+"\". Reply briefly in your own personality.",context);
     return {text:first,reply:second};
   }
+
   async function decide(agent,world){
     if(mode==="lite"||busy||!engine)return null;
     const prompt=[
@@ -174,8 +203,11 @@
       const allowed=["explore","seek_goal","approach_agent","cooperate","investigate_obstacle","avoid_crowd"];
       if(!allowed.includes(value.intent))return null;
       return {intent:value.intent,reason:String(value.reason||"").slice(0,100)};
-    }catch{return null;}
+    }catch(err){
+      return null;
+    }
   }
+
   window.LocalAgentLLM={
     initialize,chat,agentConversation,decide,
     isReady:()=>mode==="standard"&&!!engine,
@@ -184,5 +216,6 @@
     getMode:()=>mode,
     setMode:updateMode
   };
+
   setStatus(mode==="lite"?"Lite mode · no model download":"Standard mode · local model loads when needed");
 })();

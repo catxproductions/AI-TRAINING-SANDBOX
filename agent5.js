@@ -16,8 +16,8 @@
   function normalizeProfile(input={},agentId=5){
     const base={};
     for(const [key,meta] of Object.entries(PROFILE_DEFAULTS)){
-      const fallback = agentId===5 ? meta.default : (meta.default*.82);
-      const candidate = Number.isFinite(input[key]) ? Number(input[key]) : fallback;
+      const fallback=agentId===5?meta.default:(meta.default*.82);
+      const candidate=Number.isFinite(input[key])?Number(input[key]):fallback;
       base[key]=clamp(candidate,meta.min,meta.max);
     }
     return base;
@@ -39,8 +39,9 @@
       if(!saved||typeof saved!=="object")return;
       for(let id=1;id<=5;id++){
         const candidate=saved[id];
-        if(!candidate||typeof candidate!=="object")continue;
-        profiles.set(id,normalizeProfile(candidate,id));
+        if(candidate&&typeof candidate==="object"){
+          profiles.set(id,normalizeProfile(candidate,id));
+        }
       }
     }catch(err){
       /* Storage may be unavailable. The sandbox should continue without persisting. */
@@ -67,7 +68,7 @@
         agent.personality[key]=profile[key];
       }
     }
-    if(typeof agent.emotion==="object" && Number.isFinite(profile.curiosity)){
+    if(agent.emotion&&Number.isFinite(profile.curiosity)){
       agent.emotion.curiosity=clamp(profile.curiosity,.2,.9);
     }
   }
@@ -86,18 +87,19 @@
   readSaved();
 
   function initialize(agent){
+    const p=profileFor(agent.id);
     agent.personality={
       name:"Agent 5",
       archetype:"mischievous specialist",
       confidence:.82,
-      independence:.9,
-      curiosity:.72,
-      cooperation:.58,
-      playfulness:.88,
-      stubbornness:.68
+      independence:p.independence,
+      curiosity:p.curiosity,
+      cooperation:p.cooperation,
+      playfulness:p.playfulness,
+      stubbornness:p.stubbornness
     };
     agent.emotion.happiness=.58;
-    agent.emotion.curiosity=.72;
+    agent.emotion.curiosity=p.curiosity;
     agent.emotion.label="curious";
     agent.relationships={};
     agent.mischiefPhase=0;
